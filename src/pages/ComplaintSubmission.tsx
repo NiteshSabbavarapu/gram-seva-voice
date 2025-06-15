@@ -16,6 +16,10 @@ import { complaintsStore } from "@/lib/complaintsStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
+const SUPERVISOR_MOBILE = "8000000001";
+const SUPERVISOR_NAME = "FD Supervisor";
+const LOCATION_NAME = "Financial District, Gandipet mandal, Telangana";
+
 const ComplaintSubmission = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -102,7 +106,15 @@ const ComplaintSubmission = () => {
     const fetchAssignedOfficer = async () => {
       setAssignedOfficer(null);
       if (!formData.location || !formData.areaType) return;
-      // 1. Find location ID by name
+
+      // If this is our special location, directly set supervisor info without DB fetch
+      if (
+        formData.location.trim().toLowerCase() === LOCATION_NAME.toLowerCase()
+      ) {
+        setAssignedOfficer({ name: SUPERVISOR_NAME, phone: SUPERVISOR_MOBILE });
+        return;
+      }
+      // ... keep default DB fetch logic for other locations ...
       const { data: locs } = await supabase
         .from("locations")
         .select("id")
@@ -110,7 +122,6 @@ const ComplaintSubmission = () => {
         .limit(1);
       const locId = locs?.[0]?.id;
       if (locId) {
-        // 2. Find employee assigned to this location (take the first - head/supervisor)
         const { data: assignments } = await supabase
           .from("employee_assignments")
           .select("user_id")
@@ -118,7 +129,6 @@ const ComplaintSubmission = () => {
           .limit(1);
         const userId = assignments?.[0]?.user_id;
         if (userId) {
-          // 3. Retrieve their name & phone
           const { data: userRow } = await supabase
             .from("users")
             .select("name, phone")
@@ -194,8 +204,12 @@ const ComplaintSubmission = () => {
         setIsSubmitting(false);
         setSubmittedComplaintId(complaintId);
 
-        // Update the assigned officer display
-        if (assignedOfficerId) {
+        // Always show supervisor for our location, otherwise use normal logic
+        if (
+          formData.location.trim().toLowerCase() === LOCATION_NAME.toLowerCase()
+        ) {
+          setAssignedOfficer({ name: SUPERVISOR_NAME, phone: SUPERVISOR_MOBILE });
+        } else if (assignedOfficerId) {
           // Fetch the officer information for confirmation UI
           const { data: userRow } = await supabase
             .from("users")

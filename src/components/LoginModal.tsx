@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,10 +8,22 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Phone, Shield, User } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+// Constants for special users
+const SUPERVISOR_MOBILE = "8000000001";
+const SUPERVISOR_NAME = "FD Supervisor";
+const SUPERVISOR_ROLE = "employee";
+const LOCATION_NAME = "Financial District, Gandipet mandal, Telangana";
+
+// Admin
+const ADMIN_MOBILE = "9000000001";
+const ADMIN_NAME = "GramSeva Admin";
+const ADMIN_ROLE = "admin";
 
 // Employee fixed values
-const EMPLOYEE_MOBILE = "9999912345"; // Change this to your desired fixed employee number
-const EMPLOYEE_OTP = "123456";        // Use this OTP for the fixed employee
+const EMPLOYEE_MOBILE = "9999912345"; // legacy demo
+const EMPLOYEE_OTP = "123456";        // Use this OTP for all fixed users
 
 interface LoginModalProps {
   onClose: () => void;
@@ -28,8 +39,49 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Track if this is an employee login session
-  const isEmployee = phone === EMPLOYEE_MOBILE;
+  // Track user roles
+  const specialUser =
+    phone === SUPERVISOR_MOBILE
+      ? { name: SUPERVISOR_NAME, role: SUPERVISOR_ROLE }
+      : phone === ADMIN_MOBILE
+      ? { name: ADMIN_NAME, role: ADMIN_ROLE }
+      : phone === EMPLOYEE_MOBILE
+      ? { name: "Demo Employee", role: "employee" }
+      : null;
+
+  // Automatically create/ensure special users exist in supabase users table
+  useEffect(() => {
+    const ensureSpecialUser = async () => {
+      if (!specialUser) return;
+      const { name, role } = specialUser;
+      // Upsert user
+      await supabase.from("users").upsert([{ name, phone, role }], { onConflict: "phone" });
+      // For supervisor, also ensure location/assignment
+      if (phone === SUPERVISOR_MOBILE) {
+        // 1. Ensure location exists
+        let locRes = await supabase.from("locations").select("id").eq("name", LOCATION_NAME).maybeSingle();
+        let locId = locRes?.data?.id;
+        if (!locId) {
+          const insertLoc = await supabase
+            .from("locations")
+            .insert([{ name: LOCATION_NAME, type: "city" }])
+            .select("id")
+            .single();
+          locId = insertLoc.data?.id;
+        }
+        // 2. Get supervisor user id
+        const userRes = await supabase.from("users").select("id").eq("phone", SUPERVISOR_MOBILE).maybeSingle();
+        const userId = userRes?.data?.id;
+        if (userId && locId) {
+          await supabase
+            .from("employee_assignments")
+            .upsert([{ user_id: userId, location_id: locId }], { onConflict: "user_id,location_id" });
+        }
+      }
+    };
+    ensureSpecialUser();
+    // eslint-disable-next-line
+  }, [phone]);
 
   const handleSendOTP = () => {
     if (!phone || phone.length !== 10) {
@@ -54,8 +106,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
   };
 
   const handleVerifyOTP = () => {
-    // Only allow EMPLOYEE_OTP for the fixed employee number
-    if (isEmployee && otp !== EMPLOYEE_OTP) {
+    if (otp !== EMPLOYEE_OTP) {
       toast({
         title: "Invalid OTP",
         description: `Please enter the correct OTP: ${EMPLOYEE_OTP} (for demo)`,
@@ -63,26 +114,25 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
       });
       return;
     }
-    // For demo simplicity, OTP for any user currently is also EMPLOYEE_OTP
-    if (!isEmployee && otp !== EMPLOYEE_OTP) {
+    // If the user is a supervisor or admin, skip name step and complete login
+    if (specialUser) {
+      handleCompleteLogin(specialUser.name, false);
+    } else {
+      setStep('name');
       toast({
-        title: "Invalid OTP",
-        description: `Please enter the correct OTP: ${EMPLOYEE_OTP} (for demo)`,
-        variant: "destructive"
+        title: "OTP Verified!",
+        description: "Phone number verified successfully.",
+        className: "bg-green-50 text-green-800 border-green-200"
       });
-      return;
     }
-
-    setStep('name');
-    toast({
-      title: "OTP Verified!",
-      description: "Phone number verified successfully.",
-      className: "bg-green-50 text-green-800 border-green-200"
-    });
   };
 
-  const handleCompleteLogin = () => {
-    if (!name.trim()) {
+  const handleCompleteLogin = (finalName?: string, closeModal = true) => {
+    const loginName =
+      specialUser && specialUser.name
+        ? specialUser.name
+        : (finalName ?? name).trim();
+    if (!loginName) {
       toast({
         title: "Name Required",
         description: "Please enter your name to continue.",
@@ -91,19 +141,28 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
       return;
     }
 
-    login(phone, name.trim());
+    login(phone, loginName);
     toast({
       title: "Welcome!",
-      description: `Logged in successfully as ${name}`,
+      description: `Logged in successfully as ${loginName}`,
       className: "bg-green-50 text-green-800 border-green-200"
     });
 
-    if (isEmployee) {
-      // Redirect employee to official-login page after login
+    if (phone === EMPLOYEE_MOBILE) {
       onClose();
       navigate("/official-login");
-    } else {
+    }
+    // Route admin to dashboard
+    else if (phone === ADMIN_MOBILE) {
       onClose();
+      navigate("/admin-dashboard");
+    }
+    else if (phone === SUPERVISOR_MOBILE) {
+      onClose();
+      navigate("/official-login");
+    }
+    else {
+      if(closeModal) onClose();
     }
   };
 
@@ -122,7 +181,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
             {step === 'name' && 'మీ పేరు నమోదు చేయండి'}
           </p>
         </CardHeader>
-        
         <CardContent className="p-6">
           {step === 'phone' && (
             <div className="space-y-4">
@@ -141,7 +199,15 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                 />
                 <div className="text-xs text-gray-500 mt-1">
                   <span>
-                    For Employee Login, use: <b>{EMPLOYEE_MOBILE}</b>&nbsp;
+                    For Supervisor Login, use: <b>{SUPERVISOR_MOBILE}</b>
+                  </span>
+                  <br />
+                  <span>
+                    For Admin Login, use: <b>{ADMIN_MOBILE}</b>
+                  </span>
+                  <br />
+                  <span>
+                    For Employee Login, use: <b>{EMPLOYEE_MOBILE}</b>
                   </span>
                 </div>
               </div>
@@ -154,7 +220,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
               </Button>
             </div>
           )}
-
           {step === 'otp' && (
             <div className="space-y-4">
               <div className="text-center">
@@ -192,7 +257,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
               </div>
             </div>
           )}
-
+          {/* Only show the name step if not a predefined user */}
           {step === 'name' && (
             <div className="space-y-4">
               <div>
@@ -209,7 +274,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                 />
               </div>
               <Button 
-                onClick={handleCompleteLogin}
+                onClick={() => handleCompleteLogin(undefined, true)}
                 disabled={!name.trim()}
                 className="w-full bg-ts-primary hover:bg-ts-primary-dark"
               >
@@ -224,4 +289,3 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
 };
 
 export default LoginModal;
-
