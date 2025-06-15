@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -18,7 +19,24 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				'poppins': ['Poppins', 'sans-serif'],
+				'telugu': ['Noto Sans Telugu', 'sans-serif'],
+			},
 			colors: {
+				// TS Gram Seva Color Palette
+				'ts-primary': '#2E7D32',
+				'ts-primary-dark': '#1B5E20',
+				'ts-secondary': '#FFB300',
+				'ts-accent': '#00897B',
+				'ts-success': '#A5D6A7',
+				'ts-error': '#E53935',
+				'ts-progress': '#AED581',
+				'ts-background': '#F9F9F9',
+				'ts-card': '#FFFFFF',
+				'ts-text': '#212121',
+				'ts-text-secondary': '#757575',
+				
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
@@ -84,11 +102,22 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'fade-in': {
+					'0%': {
+						opacity: '0',
+						transform: 'translateY(10px)'
+					},
+					'100%': {
+						opacity: '1',
+						transform: 'translateY(0)'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'fade-in': 'fade-in 0.3s ease-out'
 			}
 		}
 	},
