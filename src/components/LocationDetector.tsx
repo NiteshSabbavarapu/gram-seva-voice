@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MapPin, Loader2 } from "lucide-react";
@@ -55,7 +54,6 @@ function determineAreaType(address: any): "Village" | "City" | "" {
 const LocationDetector: React.FC<LocationDetectorProps> = ({ onLocationDetected }) => {
   const [isDetecting, setIsDetecting] = useState(false);
   const { toast } = useToast();
-  const [manualAreaType, setManualAreaType] = useState<"Village" | "City" | "">("");
 
   const [lastCoords, setLastCoords] = useState<{ lat: number; lon: number } | null>(null);
 
@@ -107,15 +105,12 @@ const LocationDetector: React.FC<LocationDetectorProps> = ({ onLocationDetected 
             className: "bg-green-50 text-green-800 border-green-200"
           });
 
-          setManualAreaType(""); // reset any prior manual
         } catch (error) {
           toast({
             title: "Location Error",
             description: "Could not determine location details. Please enter manually.",
             variant: "destructive"
           });
-          // allow manual fallback
-          setManualAreaType("");
         }
         setIsDetecting(false);
       },
@@ -126,7 +121,6 @@ const LocationDetector: React.FC<LocationDetectorProps> = ({ onLocationDetected 
           description: "Please enter your location manually.",
           variant: "destructive"
         });
-        setManualAreaType("");
       },
       {
         enableHighAccuracy: true,
@@ -134,13 +128,6 @@ const LocationDetector: React.FC<LocationDetectorProps> = ({ onLocationDetected 
         maximumAge: 300000
       }
     );
-  };
-
-  // Manual area type fallback if user is stuck or geocode didn't resolve
-  const handleAreaTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const areaType = e.target.value as "Village" | "City" | "";
-    setManualAreaType(areaType);
-    onLocationDetected("", areaType); // Only areaType changing; let parent know (location will persist if already set)
   };
 
   return (
@@ -159,24 +146,6 @@ const LocationDetector: React.FC<LocationDetectorProps> = ({ onLocationDetected 
         )}
         <span>{isDetecting ? "Detecting..." : "📍 Detect My Location"}</span>
       </Button>
-      {/* Fallback manual area type selection if geocoding fails */}
-      {manualAreaType === "" && (
-        <div className="mt-3">
-          <label className="block text-sm text-gray-700 font-bold mb-1">
-            Select Area Type (if not auto-filled): 
-            <span className="ml-1 text-xs text-gray-500">ప్రాంత రకం</span>
-          </label>
-          <select
-            className="block w-full rounded-lg border-gray-300 focus:border-ts-primary"
-            value={manualAreaType}
-            onChange={handleAreaTypeChange}
-          >
-            <option value="">-- Select --</option>
-            <option value="Village">Village (గ్రామం)</option>
-            <option value="City">City (నగరం)</option>
-          </select>
-        </div>
-      )}
     </div>
   );
 };
