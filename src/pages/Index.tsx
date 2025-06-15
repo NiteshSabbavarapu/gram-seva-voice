@@ -29,10 +29,10 @@ const Index = () => {
             <Link to="/submit-complaint">
               <Button 
                 size="lg" 
-                className="w-full bg-ts-secondary hover:bg-ts-secondary/90 text-black font-semibold py-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
+                className="w-full bg-ts-secondary hover:bg-ts-secondary/90 text-black font-semibold py-6 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
               >
-                <ArrowUp className="mr-2 h-5 w-5" />
-                Submit a Complaint
+                <ArrowUp className="mr-2 h-5 w-5 flex-shrink-0" />
+                <span className="whitespace-nowrap">Submit a Complaint</span>
               </Button>
             </Link>
             
@@ -40,10 +40,10 @@ const Index = () => {
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="w-full border-2 border-white text-white hover:bg-white hover:text-ts-primary font-semibold py-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
+                className="w-full border-2 border-white text-white hover:bg-white hover:text-ts-primary font-semibold py-6 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
               >
-                <Search className="mr-2 h-5 w-5" />
-                Track Complaint
+                <Search className="mr-2 h-5 w-5 flex-shrink-0" />
+                <span className="whitespace-nowrap">Track Complaint</span>
               </Button>
             </Link>
             
@@ -51,9 +51,9 @@ const Index = () => {
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="w-full border-2 border-white text-white hover:bg-white hover:text-ts-primary font-semibold py-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
+                className="w-full border-2 border-white text-white hover:bg-white hover:text-ts-primary font-semibold py-6 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
               >
-                Login as Official
+                <span className="whitespace-nowrap">Login as Official</span>
               </Button>
             </Link>
           </div>

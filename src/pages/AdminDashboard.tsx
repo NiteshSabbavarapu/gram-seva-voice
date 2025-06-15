@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,49 +9,25 @@ import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Home, Check } from "lucide-react";
+import { complaintsStore, Complaint } from "@/lib/complaintsStore";
 
 const AdminDashboard = () => {
   const { toast } = useToast();
   const [filterStatus, setFilterStatus] = useState("all");
-  
-  // Mock complaints data
-  const [complaints] = useState([
-    {
-      id: "TS123456",
-      name: "Ravi Kumar",
-      phone: "9876543210",
-      location: "Yellandu, Khammam",
-      category: "Roads & Infrastructure",
-      description: "Pothole on main road causing traffic issues",
-      status: "Submitted",
-      submittedDate: "2024-06-10",
-      assignedOfficer: null
-    },
-    {
-      id: "TS123457", 
-      name: "Lakshmi Devi",
-      phone: "9876543211",
-      location: "Warangal Urban",
-      category: "Water Supply",
-      description: "No water supply for 3 days in our area",
-      status: "In Progress",
-      submittedDate: "2024-06-09",
-      assignedOfficer: "Sri Ramesh Kumar"
-    },
-    {
-      id: "TS123458",
-      name: "Mahesh Reddy",
-      phone: "9876543212", 
-      location: "Nizamabad",
-      category: "Electricity",
-      description: "Frequent power cuts in the village",
-      status: "Resolved",
-      submittedDate: "2024-06-08",
-      assignedOfficer: "Smt. Priya Sharma"
-    }
-  ]);
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
 
-  const getStatusColor = (status) => {
+  useEffect(() => {
+    const loadComplaints = () => {
+      setComplaints(complaintsStore.getComplaints());
+    };
+    
+    loadComplaints();
+    
+    const unsubscribe = complaintsStore.subscribe(loadComplaints);
+    return unsubscribe;
+  }, []);
+
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "Submitted": return "bg-ts-secondary text-black";
       case "In Progress": return "bg-ts-progress text-black";
@@ -60,7 +36,13 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleStatusUpdate = (complaintId, action) => {
+  const handleStatusUpdate = (complaintId: string, action: string) => {
+    if (action === "Assigned") {
+      complaintsStore.updateComplaintStatus(complaintId, "In Progress", "System Assigned Officer");
+    } else if (action === "Resolved") {
+      complaintsStore.updateComplaintStatus(complaintId, "Resolved");
+    }
+    
     toast({
       title: "Action Completed",
       description: `Complaint ${complaintId} has been ${action.toLowerCase()}.`,
@@ -71,6 +53,17 @@ const AdminDashboard = () => {
   const filteredComplaints = filterStatus === "all" 
     ? complaints 
     : complaints.filter(complaint => complaint.status.toLowerCase() === filterStatus);
+
+  const getStats = () => {
+    const total = complaints.length;
+    const submitted = complaints.filter(c => c.status === "Submitted").length;
+    const inProgress = complaints.filter(c => c.status === "In Progress").length;
+    const resolved = complaints.filter(c => c.status === "Resolved").length;
+    
+    return { total, submitted, inProgress, resolved };
+  };
+
+  const stats = getStats();
 
   return (
     <div className="min-h-screen bg-ts-background font-poppins">
@@ -97,29 +90,29 @@ const AdminDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="bg-gradient-to-br from-ts-primary to-ts-primary-dark text-white rounded-xl shadow-lg">
             <CardContent className="p-6">
-              <h3 className="text-2xl font-bold">8</h3>
+              <h3 className="text-2xl font-bold">{stats.total}</h3>
               <p className="text-white/90">Total Complaints</p>
             </CardContent>
           </Card>
           
           <Card className="bg-gradient-to-br from-ts-secondary to-yellow-400 text-black rounded-xl shadow-lg">
             <CardContent className="p-6">
-              <h3 className="text-2xl font-bold">3</h3>
+              <h3 className="text-2xl font-bold">{stats.submitted}</h3>
               <p className="text-black/80">Pending Review</p>
             </CardContent>
           </Card>
           
           <Card className="bg-gradient-to-br from-ts-progress to-green-400 text-black rounded-xl shadow-lg">
             <CardContent className="p-6">
-              <h3 className="text-2xl font-bold">2</h3>
+              <h3 className="text-2xl font-bold">{stats.inProgress}</h3>
               <p className="text-black/80">In Progress</p>
             </CardContent>
           </Card>
           
           <Card className="bg-gradient-to-br from-ts-success to-green-500 text-black rounded-xl shadow-lg">
             <CardContent className="p-6">
-              <h3 className="text-2xl font-bold">3</h3>
-              <p className="text-black/80">Resolved Today</p>
+              <h3 className="text-2xl font-bold">{stats.resolved}</h3>
+              <p className="text-black/80">Resolved</p>
             </CardContent>
           </Card>
         </div>
@@ -163,9 +156,9 @@ const AdminDashboard = () => {
                     </div>
                     
                     <div className="space-y-1 text-sm text-ts-text-secondary">
-                      <p><strong>Name:</strong> {complaint.name}</p>
+                      <p><strong>Name:</strong> {complaint.name || "Anonymous"}</p>
                       <p><strong>Phone:</strong> {complaint.phone}</p>
-                      <p><strong>Location:</strong> {complaint.location}</p>
+                      <p><strong>Location:</strong> {complaint.location || "Not specified"}</p>
                       <p><strong>Category:</strong> {complaint.category}</p>
                       <p><strong>Description:</strong> {complaint.description}</p>
                       <p><strong>Submitted:</strong> {complaint.submittedDate}</p>
@@ -206,6 +199,14 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
           ))}
+          
+          {filteredComplaints.length === 0 && (
+            <Card className="shadow-lg rounded-xl border-0">
+              <CardContent className="p-8 text-center">
+                <p className="text-ts-text-secondary">No complaints found for the selected filter.</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
       

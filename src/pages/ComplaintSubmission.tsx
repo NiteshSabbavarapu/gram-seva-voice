@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { ArrowUp, Home } from "lucide-react";
+import { complaintsStore } from "@/lib/complaintsStore";
 
 const ComplaintSubmission = () => {
   const { toast } = useToast();
@@ -50,7 +51,15 @@ const ComplaintSubmission = () => {
     
     // Simulate API call
     setTimeout(() => {
-      const complaintId = `TS${Date.now().toString().slice(-6)}`;
+      const complaintId = complaintsStore.addComplaint({
+        name: formData.name,
+        phone: formData.phone,
+        location: formData.location,
+        category: formData.category,
+        description: formData.description,
+        image: formData.image
+      });
+      
       setIsSubmitting(false);
       
       toast({
