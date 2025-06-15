@@ -77,7 +77,8 @@ const ComplaintSubmission = () => {
     const fetchContacts = async () => {
       setLocationContacts([]);
       if (!formData.location || !formData.areaType) return;
-      // Find location row
+      // Find location row by name/type match
+      // For cities/villages, allow partial match for flexibility.
       const { data: locs } = await supabase
         .from("locations")
         .select("id")
@@ -212,6 +213,7 @@ const ComplaintSubmission = () => {
                   <div className="mt-4">
                     <h3 className="font-semibold text-ts-text mb-1">📍 Forwarded To:</h3>
                     <div className="mb-2">{getForwardedTo()}</div>
+                    {/* Display contacts for the selected location if available */}
                     {locationContacts.length > 0 && (
                       <div className="bg-blue-50 rounded p-4 mt-2 text-left">
                         <h4 className="font-medium text-blue-700 mb-1">📞 Key Contacts</h4>
