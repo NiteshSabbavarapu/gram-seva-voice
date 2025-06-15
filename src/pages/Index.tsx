@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,29 +30,27 @@ const Index = () => {
                 size="lg" 
                 className="w-full bg-ts-secondary hover:bg-ts-secondary/90 text-black font-semibold py-6 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
               >
-                <ArrowUp className="mr-2 h-5 w-5 flex-shrink-0" />
-                <span className="whitespace-nowrap">Submit a Complaint</span>
+                <ArrowUp className="mr-2 h-5 w-5" />
+                Submit a Complaint
               </Button>
             </Link>
             
             <Link to="/track-complaint">
               <Button 
                 size="lg" 
-                variant="outline" 
-                className="w-full border-2 border-white text-white hover:bg-white hover:text-ts-primary font-semibold py-6 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
+                className="w-full bg-white border-2 border-white text-ts-primary hover:bg-gray-100 font-semibold py-6 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
               >
-                <Search className="mr-2 h-5 w-5 flex-shrink-0" />
-                <span className="whitespace-nowrap">Track Complaint</span>
+                <Search className="mr-2 h-5 w-5" />
+                Track Complaint
               </Button>
             </Link>
             
             <Link to="/official-login">
               <Button 
                 size="lg" 
-                variant="outline" 
-                className="w-full border-2 border-white text-white hover:bg-white hover:text-ts-primary font-semibold py-6 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
+                className="w-full bg-white border-2 border-white text-ts-primary hover:bg-gray-100 font-semibold py-6 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
               >
-                <span className="whitespace-nowrap">Login as Official</span>
+                Login as Official
               </Button>
             </Link>
           </div>
