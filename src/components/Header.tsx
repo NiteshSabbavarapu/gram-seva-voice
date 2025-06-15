@@ -36,14 +36,22 @@ const Header = () => {
                 <span className="ml-2 text-white/70">({user?.phone})</span>
               </div>
             )}
-            
+
+            {/* Home and Contact: Only visible on desktop */}
             <Link 
-              to="/" 
-              className="text-white hover:text-ts-secondary transition-colors font-medium"
+              to="/"
+              className="hidden md:inline text-white hover:text-ts-secondary transition-colors font-medium"
             >
               Home
             </Link>
+            <Link 
+              to="/contact"
+              className="hidden md:inline text-white hover:text-ts-secondary transition-colors font-medium"
+            >
+              Contact
+            </Link>
             
+            {/* My Complaints: Always visible */}
             <Link 
               to="/my-complaints" 
               className="flex items-center text-white hover:text-ts-secondary transition-colors font-medium"
@@ -55,13 +63,7 @@ const Header = () => {
               </span>
             </Link>
             
-            <Link 
-              to="/contact" 
-              className="text-white hover:text-ts-secondary transition-colors font-medium"
-            >
-              Contact
-            </Link>
-            
+            {/* Logout/Login button: Always visible, but correctly placed for mobile */}
             {isAuthenticated ? (
               <Button
                 onClick={logout}
