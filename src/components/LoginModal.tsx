@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,11 +42,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
   // Track user roles
   const specialUser =
     phone === SUPERVISOR_MOBILE
-      ? { name: SUPERVISOR_NAME, role: SUPERVISOR_ROLE }
+      ? { name: SUPERVISOR_NAME, role: SUPERVISOR_ROLE as "employee" | "admin" | "citizen" }
       : phone === ADMIN_MOBILE
-      ? { name: ADMIN_NAME, role: ADMIN_ROLE }
+      ? { name: ADMIN_NAME, role: ADMIN_ROLE as "employee" | "admin" | "citizen" }
       : phone === EMPLOYEE_MOBILE
-      ? { name: "Demo Employee", role: "employee" }
+      ? { name: "Demo Employee", role: "employee" as "employee" }
       : null;
 
   // Automatically create/ensure special users exist in supabase users table
@@ -54,8 +54,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
     const ensureSpecialUser = async () => {
       if (!specialUser) return;
       const { name, role } = specialUser;
-      // Upsert user
-      await supabase.from("users").upsert([{ name, phone, role }], { onConflict: "phone" });
+      // Upsert user - role is GUARANTEED correct
+      await supabase.from("users").upsert(
+        [{ name, phone, role }], 
+        { onConflict: "phone" }
+      );
       // For supervisor, also ensure location/assignment
       if (phone === SUPERVISOR_MOBILE) {
         // 1. Ensure location exists
