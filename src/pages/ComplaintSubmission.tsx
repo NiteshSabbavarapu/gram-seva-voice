@@ -14,6 +14,7 @@ import LocationDetector from "@/components/LocationDetector";
 import { ArrowUp, Home, CheckCircle, FileText, User, Phone } from "lucide-react";
 import { complaintsStore } from "@/lib/complaintsStore";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const ComplaintSubmission = () => {
   const { toast } = useToast();
@@ -29,6 +30,7 @@ const ComplaintSubmission = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedComplaintId, setSubmittedComplaintId] = useState<string | null>(null);
+  const [locationContacts, setLocationContacts] = useState<{contact_name: string, phone: string}[]>([]);
 
   const categories = [
     "Roads & Infrastructure",
@@ -70,6 +72,29 @@ const ComplaintSubmission = () => {
     }
     return "Unknown Authority";
   };
+
+  useEffect(() => {
+    const fetchContacts = async () => {
+      setLocationContacts([]);
+      if (!formData.location || !formData.areaType) return;
+      // Find location row
+      const { data: locs } = await supabase
+        .from("locations")
+        .select("id")
+        .ilike("name", formData.location)
+        .limit(1);
+
+      const locId = locs?.[0]?.id;
+      if (locId) {
+        const { data: contacts } = await supabase
+          .from("location_contacts")
+          .select("contact_name, phone")
+          .eq("location_id", locId);
+        setLocationContacts(contacts || []);
+      }
+    };
+    fetchContacts();
+  }, [formData.location, formData.areaType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,6 +209,22 @@ const ComplaintSubmission = () => {
                   <p className="text-sm text-ts-text-secondary">
                     Please save this ID for tracking your complaint status
                   </p>
+                  <div className="mt-4">
+                    <h3 className="font-semibold text-ts-text mb-1">📍 Forwarded To:</h3>
+                    <div className="mb-2">{getForwardedTo()}</div>
+                    {locationContacts.length > 0 && (
+                      <div className="bg-blue-50 rounded p-4 mt-2 text-left">
+                        <h4 className="font-medium text-blue-700 mb-1">📞 Key Contacts</h4>
+                        {locationContacts.map((c, i) => (
+                          <div key={i} className="mb-1">
+                            <span className="font-semibold">{c.contact_name}</span>
+                            <span className="mx-2">–</span>
+                            <span className="text-blue-900">{c.phone}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-4">

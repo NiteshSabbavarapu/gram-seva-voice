@@ -181,6 +181,35 @@ export type Database = {
           },
         ]
       }
+      location_contacts: {
+        Row: {
+          contact_name: string
+          id: string
+          location_id: string | null
+          phone: string
+        }
+        Insert: {
+          contact_name: string
+          id?: string
+          location_id?: string | null
+          phone: string
+        }
+        Update: {
+          contact_name?: string
+          id?: string
+          location_id?: string | null
+          phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_contacts_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           id: string

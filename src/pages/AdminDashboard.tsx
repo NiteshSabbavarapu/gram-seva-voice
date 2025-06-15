@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Home, Check } from "lucide-react";
 import { complaintsStore, Complaint } from "@/lib/complaintsStore";
+import LocationContactsManager from "@/components/admin/LocationContactsManager";
 
 const AdminDashboard = () => {
   const { toast } = useToast();
@@ -208,6 +208,9 @@ const AdminDashboard = () => {
             </Card>
           )}
         </div>
+
+        {/* NEW: Contacts Manager */}
+        <LocationContactsManager />
       </div>
       
       <Footer />
