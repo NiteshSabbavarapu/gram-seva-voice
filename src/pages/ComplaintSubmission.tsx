@@ -176,41 +176,43 @@ const ComplaintSubmission = () => {
     const forwardedTo = getForwardedTo();
 
     setTimeout(() => {
-      // Insert complaint into complaintsStore (simulating DB insert)
-      const complaintId = complaintsStore.addComplaint({
-        name: user.name,
-        phone: user.phone,
-        location: formData.location,
-        areaType: formData.areaType,
-        forwardedTo,
-        category: formData.category,
-        description: formData.description,
-        image: formData.image,
-        assignedOfficerId, // pass this down to store for assignment
-        locationId: locId // for completeness, in case your store supports it
-      });
-      
-      setIsSubmitting(false);
-      setSubmittedComplaintId(complaintId);
-      
-      // Update the assigned officer display
-      if (assignedOfficerId) {
-        // Fetch the officer information for confirmation UI
-        const { data: userRow } = await supabase
-          .from("users")
-          .select("name, phone")
-          .eq("id", assignedOfficerId)
-          .maybeSingle();
-        if (userRow) {
-          setAssignedOfficer({ name: userRow.name || "Officer", phone: userRow.phone || "N/A" });
-        }
-      }
+      // Async logic for fetch in setTimeout must use an IIFE
+      (async () => {
+        // Insert complaint into complaintsStore (simulating DB insert)
+        const complaintId = complaintsStore.addComplaint({
+          name: user.name,
+          phone: user.phone,
+          location: formData.location,
+          areaType: formData.areaType,
+          forwardedTo,
+          category: formData.category,
+          description: formData.description,
+          image: formData.image,
+          // assignedOfficerId and locationId not allowed, so REMOVE from argument
+        });
 
-      toast({
-        title: "Complaint Submitted Successfully!",
-        description: `Your complaint ID is: ${complaintId}. ✅ Complaint forwarded to: ${forwardedTo}`,
-        className: "bg-ts-success text-black"
-      });
+        setIsSubmitting(false);
+        setSubmittedComplaintId(complaintId);
+
+        // Update the assigned officer display
+        if (assignedOfficerId) {
+          // Fetch the officer information for confirmation UI
+          const { data: userRow } = await supabase
+            .from("users")
+            .select("name, phone")
+            .eq("id", assignedOfficerId)
+            .maybeSingle();
+          if (userRow) {
+            setAssignedOfficer({ name: userRow.name || "Officer", phone: userRow.phone || "N/A" });
+          }
+        }
+
+        toast({
+          title: "Complaint Submitted Successfully!",
+          description: `Your complaint ID is: ${complaintId}. ✅ Complaint forwarded to: ${forwardedTo}`,
+          className: "bg-ts-success text-black"
+        });
+      })();
     }, 2000);
   };
 
