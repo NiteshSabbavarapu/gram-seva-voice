@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -21,10 +22,6 @@ const ADMIN_MOBILE = "9000000001";
 const ADMIN_NAME = "GramSeva Admin";
 const ADMIN_ROLE = "admin";
 
-// Employee fixed values
-const EMPLOYEE_MOBILE = "9999912345"; // legacy demo
-const EMPLOYEE_OTP = "123456";        // Use this OTP for all fixed users
-
 interface LoginModalProps {
   onClose: () => void;
 }
@@ -38,6 +35,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
   const [name, setName] = useState('');
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [confirmation, setConfirmation] = useState<null | {session: any}>(null);
 
   // Track user roles
   const specialUser =
@@ -45,23 +43,19 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
       ? { name: SUPERVISOR_NAME, role: SUPERVISOR_ROLE as "employee" | "admin" | "citizen" }
       : phone === ADMIN_MOBILE
       ? { name: ADMIN_NAME, role: ADMIN_ROLE as "employee" | "admin" | "citizen" }
-      : phone === EMPLOYEE_MOBILE
-      ? { name: "Demo Employee", role: "employee" as "employee" }
       : null;
 
-  // Automatically create/ensure special users exist in supabase users table
+  // Automatically create/ensure special users exist in supabase users table (for demo users)
   useEffect(() => {
     const ensureSpecialUser = async () => {
       if (!specialUser) return;
       const { name, role } = specialUser;
-      // Upsert user - role is GUARANTEED correct
       await supabase.from("users").upsert(
         [{ name, phone, role }], 
         { onConflict: "phone" }
       );
-      // For supervisor, also ensure location/assignment
+      // Supervisor assignment logic remains as before
       if (phone === SUPERVISOR_MOBILE) {
-        // 1. Ensure location exists
         let locRes = await supabase.from("locations").select("id").eq("name", LOCATION_NAME).maybeSingle();
         let locId = locRes?.data?.id;
         if (!locId) {
@@ -72,7 +66,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
             .single();
           locId = insertLoc.data?.id;
         }
-        // 2. Get supervisor user id
         const userRes = await supabase.from("users").select("id").eq("phone", SUPERVISOR_MOBILE).maybeSingle();
         const userId = userRes?.data?.id;
         if (userId && locId) {
@@ -86,7 +79,10 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
     // eslint-disable-next-line
   }, [phone]);
 
-  const handleSendOTP = () => {
+  // Remove legacy employee logic - ONLY supervisors/admins have fixed demo login.
+
+  // NEW: Send OTP via Supabase for normal users
+  const handleSendOTP = async () => {
     if (!phone || phone.length !== 10) {
       toast({
         title: "Invalid Phone Number",
@@ -96,41 +92,93 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
       return;
     }
 
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    // Special users demo bypass
+    if (specialUser) {
       setStep('otp');
       toast({
         title: "OTP Sent!",
-        description: `Verification code sent to ${phone}. Demo OTP: ${EMPLOYEE_OTP}`,
+        description: `Using demo login for ${specialUser.name}. Any 6-digit OTP will work.`,
         className: "bg-green-50 text-green-800 border-green-200"
       });
-    }, 1000);
-  };
+      return;
+    }
 
-  const handleVerifyOTP = () => {
-    if (otp !== EMPLOYEE_OTP) {
+    setIsLoading(true);
+    // Use Supabase's OTP send method
+    const { data, error } = await supabase.auth.signInWithOtp({
+      phone: "+91" + phone // Ensure country code is prepended
+    });
+    setIsLoading(false);
+    if (error) {
       toast({
-        title: "Invalid OTP",
-        description: `Please enter the correct OTP: ${EMPLOYEE_OTP} (for demo)`,
+        title: "OTP Send Failed",
+        description: error.message,
         variant: "destructive"
       });
       return;
     }
-    // If the user is a supervisor or admin, skip name step and complete login
+    setConfirmation(data || null);
+    setStep('otp');
+    toast({
+      title: "OTP Sent!",
+      description: `A verification code was sent to +91${phone}.`,
+      className: "bg-green-50 text-green-800 border-green-200"
+    });
+  };
+
+  // NEW: OTP verification/Sign-in logic
+  const handleVerifyOTP = async () => {
+    // For demo supervisors/admins, let any OTP work (for quick testing)
     if (specialUser) {
       handleCompleteLogin(specialUser.name, false);
+      return;
+    }
+    if (!otp || otp.length !== 6) {
+      toast({
+        title: "Invalid OTP",
+        description: "Please enter a valid 6-digit OTP.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setIsLoading(true);
+    // Verify via Supabase
+    const { data, error } = await supabase.auth.verifyOtp({
+      phone: "+91" + phone,
+      token: otp,
+      type: "sms"
+    });
+    setIsLoading(false);
+    if (error) {
+      toast({
+        title: "OTP Verification Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Success: proceed to next step or login
+    if (data?.user) {
+      // If the user has a name in profile, skip Name step
+      // For minimal MVP, always ask for name if not present
+      const { user } = data;
+      if (user?.user_metadata?.name) {
+        handleCompleteLogin(user.user_metadata.name, true);
+      } else {
+        setStep('name');
+        toast({
+          title: "OTP Verified!",
+          description: "Phone number verified successfully.",
+          className: "bg-green-50 text-green-800 border-green-200"
+        });
+      }
     } else {
       setStep('name');
-      toast({
-        title: "OTP Verified!",
-        description: "Phone number verified successfully.",
-        className: "bg-green-50 text-green-800 border-green-200"
-      });
     }
   };
 
-  const handleCompleteLogin = (finalName?: string, closeModal = true) => {
+  const handleCompleteLogin = async (finalName?: string, closeModal = true) => {
     const loginName =
       specialUser && specialUser.name
         ? specialUser.name
@@ -144,19 +192,28 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
       return;
     }
 
+    // Save name for new users (if not special user)
+    if (!specialUser) {
+      // Update user profile (if available)
+      const userSession = await supabase.auth.getSession();
+      const currentUser = userSession.data.session?.user;
+      if (currentUser) {
+        // Save name as metadata (for illustration), AND update local users table
+        await supabase.auth.updateUser({ data: { name: loginName }});
+        await supabase
+          .from("users")
+          .upsert([{ phone: currentUser.phone?.replace("+91", ""), name: loginName, role: "citizen" }], { onConflict: "phone" });
+      }
+    }
     login(phone, loginName);
+
     toast({
       title: "Welcome!",
       description: `Logged in successfully as ${loginName}`,
       className: "bg-green-50 text-green-800 border-green-200"
     });
-
-    if (phone === EMPLOYEE_MOBILE) {
-      onClose();
-      navigate("/official-login");
-    }
-    // Route admin to dashboard
-    else if (phone === ADMIN_MOBILE) {
+    // Only supervisor/admin redirect logic remains
+    if (phone === ADMIN_MOBILE) {
       onClose();
       navigate("/admin-dashboard");
     }
@@ -208,10 +265,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                   <span>
                     For Admin Login, use: <b>{ADMIN_MOBILE}</b>
                   </span>
-                  <br />
-                  <span>
-                    For Employee Login, use: <b>{EMPLOYEE_MOBILE}</b>
-                  </span>
                 </div>
               </div>
               <Button 
@@ -227,8 +280,13 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
             <div className="space-y-4">
               <div className="text-center">
                 <p className="text-ts-text mb-2">Enter the OTP sent to</p>
-                <p className="font-semibold text-ts-primary">{phone}</p>
-                <p className="text-sm text-ts-text-secondary mt-2">Demo OTP: {EMPLOYEE_OTP}</p>
+                <p className="font-semibold text-ts-primary">+91{phone}</p>
+                {!specialUser && (
+                  <p className="text-sm text-ts-text-secondary mt-2">Check your SMS for the OTP.</p>
+                )}
+                {specialUser && (
+                  <p className="text-sm text-ts-text-secondary mt-2">Demo: any 6-digit OTP will work.</p>
+                )}
               </div>
               <div className="flex justify-center">
                 <InputOTP value={otp} onChange={setOtp} maxLength={6}>
@@ -252,10 +310,10 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                 </Button>
                 <Button 
                   onClick={handleVerifyOTP}
-                  disabled={otp.length !== 6}
+                  disabled={otp.length !== 6 || isLoading}
                   className="flex-1 bg-ts-primary hover:bg-ts-primary-dark"
                 >
-                  Verify OTP
+                  {isLoading ? "Verifying..." : "Verify OTP"}
                 </Button>
               </div>
             </div>
@@ -278,10 +336,10 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
               </div>
               <Button 
                 onClick={() => handleCompleteLogin(undefined, true)}
-                disabled={!name.trim()}
+                disabled={!name.trim() || isLoading}
                 className="w-full bg-ts-primary hover:bg-ts-primary-dark"
               >
-                Complete Login
+                {isLoading ? "Completing..." : "Complete Login"}
               </Button>
             </div>
           )}
@@ -292,3 +350,4 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
 };
 
 export default LoginModal;
+
