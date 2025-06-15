@@ -1,11 +1,14 @@
 
 import { Link } from "react-router-dom";
-import { Home, FileText, LogOut, User } from "lucide-react";
+import { Home, FileText, LogOut, User, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import LoginModal from "@/components/LoginModal";
 
 const Header = () => {
   const { user, logout, isAuthenticated } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   return (
     <header className="bg-ts-primary-dark shadow-lg">
@@ -41,24 +44,16 @@ const Header = () => {
               Home
             </Link>
             
-            {isAuthenticated && (
-              <Link 
-                to="/my-complaints" 
-                className="hidden md:flex items-center text-white hover:text-ts-secondary transition-colors font-medium"
-              >
-                <FileText className="h-4 w-4 mr-1" />
-                My Complaints
-              </Link>
-            )}
-            
-            {isAuthenticated && (
-              <Link 
-                to="/my-complaints" 
-                className="md:hidden text-white hover:text-ts-secondary transition-colors"
-              >
+            <Link 
+              to="/my-complaints" 
+              className="flex items-center text-white hover:text-ts-secondary transition-colors font-medium"
+            >
+              <FileText className="h-4 w-4 mr-1" />
+              <span className="hidden md:inline">My Complaints</span>
+              <span className="md:hidden">
                 <FileText className="h-5 w-5" />
-              </Link>
-            )}
+              </span>
+            </Link>
             
             <Link 
               to="/contact" 
@@ -67,7 +62,7 @@ const Header = () => {
               Contact
             </Link>
             
-            {isAuthenticated && (
+            {isAuthenticated ? (
               <Button
                 onClick={logout}
                 variant="ghost"
@@ -77,6 +72,20 @@ const Header = () => {
                 <LogOut className="h-4 w-4 mr-1" />
                 <span className="hidden md:inline">Logout</span>
               </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={() => setShowLoginModal(true)}
+                  size="sm"
+                  className="bg-white text-ts-primary font-semibold hover:bg-ts-secondary hover:text-white"
+                >
+                  <LogIn className="h-4 w-4 mr-1" />
+                  <span>Login</span>
+                </Button>
+                {showLoginModal && (
+                  <LoginModal onClose={() => setShowLoginModal(false)} />
+                )}
+              </>
             )}
           </div>
         </div>
