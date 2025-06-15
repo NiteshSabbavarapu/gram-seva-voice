@@ -124,6 +124,7 @@ const ComplaintSubmission = () => {
     setSubmittedComplaintId(null);
     setFormData({
       location: "",
+      areaType: "", // FIX: Add areaType so it matches the expected state shape
       category: "",
       description: "",
       image: null
