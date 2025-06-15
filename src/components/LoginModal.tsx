@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -36,6 +35,20 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [confirmation, setConfirmation] = useState<null | {session: any}>(null);
+
+  // Helper to get clean Indian phone number
+  const getIndianPhoneNumber = (rawInput: string): string => {
+    let cleaned = rawInput.replace(/\D/g, ""); // Remove non-digits
+    // Remove leading 91 if present (for pasted numbers)
+    if (cleaned.startsWith("91") && cleaned.length > 10) {
+      cleaned = cleaned.substring(2);
+    }
+    // Remove any leading zeros
+    cleaned = cleaned.replace(/^0+/, "");
+    // Only keep the last 10 digits if too long
+    if (cleaned.length > 10) cleaned = cleaned.slice(-10);
+    return cleaned;
+  };
 
   // Track user roles
   const specialUser =
@@ -83,10 +96,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
 
   // NEW: Send OTP via Supabase for normal users
   const handleSendOTP = async () => {
-    if (!phone || phone.length !== 10) {
+    const cleanedPhone = getIndianPhoneNumber(phone);
+    if (!cleanedPhone || cleanedPhone.length !== 10) {
       toast({
         title: "Invalid Phone Number",
-        description: "Please enter a valid 10-digit phone number.",
+        description: "Please enter a valid 10-digit Indian mobile number.",
         variant: "destructive"
       });
       return;
@@ -106,7 +120,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
     setIsLoading(true);
     // Use Supabase's OTP send method
     const { data, error } = await supabase.auth.signInWithOtp({
-      phone: "+91" + phone // Ensure country code is prepended
+      phone: "+91" + cleanedPhone // Always prepend +91
     });
     setIsLoading(false);
     if (error) {
@@ -121,7 +135,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
     setStep('otp');
     toast({
       title: "OTP Sent!",
-      description: `A verification code was sent to +91${phone}.`,
+      description: `A verification code was sent to +91${cleanedPhone}.`,
       className: "bg-green-50 text-green-800 border-green-200"
     });
   };
@@ -252,10 +266,10 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                   id="phone"
                   type="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  onChange={(e) => setPhone(getIndianPhoneNumber(e.target.value))}
                   className="mt-2"
                   placeholder="Enter 10-digit mobile number"
-                  maxLength={10}
+                  maxLength={14} // to allow some room for pasting +91, 0, etc.
                 />
                 <div className="text-xs text-gray-500 mt-1">
                   <span>
@@ -269,7 +283,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
               </div>
               <Button 
                 onClick={handleSendOTP}
-                disabled={isLoading || phone.length !== 10}
+                disabled={isLoading || getIndianPhoneNumber(phone).length !== 10}
                 className="w-full bg-ts-primary hover:bg-ts-primary-dark"
               >
                 {isLoading ? "Sending OTP..." : "Send OTP"}
@@ -350,4 +364,3 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
 };
 
 export default LoginModal;
-
