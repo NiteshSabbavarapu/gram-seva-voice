@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Phone, Shield, User } from "lucide-react";
 
+// Employee fixed values
+const EMPLOYEE_MOBILE = "9999912345"; // Change this to your desired fixed employee number
+const EMPLOYEE_OTP = "123456";        // Use this OTP for the fixed employee
+
 interface LoginModalProps {
   onClose: () => void;
 }
@@ -16,11 +21,15 @@ interface LoginModalProps {
 const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
   const { login } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [step, setStep] = useState<'phone' | 'otp' | 'name'>('phone');
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Track if this is an employee login session
+  const isEmployee = phone === EMPLOYEE_MOBILE;
 
   const handleSendOTP = () => {
     if (!phone || phone.length !== 10) {
@@ -33,23 +42,32 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
     }
 
     setIsLoading(true);
-    // Simulate OTP sending
     setTimeout(() => {
       setIsLoading(false);
       setStep('otp');
       toast({
         title: "OTP Sent!",
-        description: `Verification code sent to ${phone}. Demo OTP: 123456`,
+        description: `Verification code sent to ${phone}. Demo OTP: ${EMPLOYEE_OTP}`,
         className: "bg-green-50 text-green-800 border-green-200"
       });
     }, 1000);
   };
 
   const handleVerifyOTP = () => {
-    if (otp !== '123456') {
+    // Only allow EMPLOYEE_OTP for the fixed employee number
+    if (isEmployee && otp !== EMPLOYEE_OTP) {
       toast({
         title: "Invalid OTP",
-        description: "Please enter the correct OTP: 123456",
+        description: `Please enter the correct OTP: ${EMPLOYEE_OTP} (for demo)`,
+        variant: "destructive"
+      });
+      return;
+    }
+    // For demo simplicity, OTP for any user currently is also EMPLOYEE_OTP
+    if (!isEmployee && otp !== EMPLOYEE_OTP) {
+      toast({
+        title: "Invalid OTP",
+        description: `Please enter the correct OTP: ${EMPLOYEE_OTP} (for demo)`,
         variant: "destructive"
       });
       return;
@@ -79,7 +97,14 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
       description: `Logged in successfully as ${name}`,
       className: "bg-green-50 text-green-800 border-green-200"
     });
-    onClose();
+
+    if (isEmployee) {
+      // Redirect employee to official-login page after login
+      onClose();
+      navigate("/official-login");
+    } else {
+      onClose();
+    }
   };
 
   return (
@@ -114,6 +139,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                   placeholder="Enter 10-digit mobile number"
                   maxLength={10}
                 />
+                <div className="text-xs text-gray-500 mt-1">
+                  <span>
+                    For Employee Login, use: <b>{EMPLOYEE_MOBILE}</b>&nbsp;
+                  </span>
+                </div>
               </div>
               <Button 
                 onClick={handleSendOTP}
@@ -130,7 +160,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
               <div className="text-center">
                 <p className="text-ts-text mb-2">Enter the OTP sent to</p>
                 <p className="font-semibold text-ts-primary">{phone}</p>
-                <p className="text-sm text-ts-text-secondary mt-2">Demo OTP: 123456</p>
+                <p className="text-sm text-ts-text-secondary mt-2">Demo OTP: {EMPLOYEE_OTP}</p>
               </div>
               <div className="flex justify-center">
                 <InputOTP value={otp} onChange={setOtp} maxLength={6}>
@@ -194,3 +224,4 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
 };
 
 export default LoginModal;
+
