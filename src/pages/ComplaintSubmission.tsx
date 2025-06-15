@@ -31,6 +31,7 @@ const ComplaintSubmission = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedComplaintId, setSubmittedComplaintId] = useState<string | null>(null);
   const [locationContacts, setLocationContacts] = useState<{contact_name: string, phone: string}[]>([]);
+  const [assignedOfficer, setAssignedOfficer] = useState<{name: string, phone: string} | null>(null);
 
   const categories = [
     "Roads & Infrastructure",
@@ -97,6 +98,41 @@ const ComplaintSubmission = () => {
     fetchContacts();
   }, [formData.location, formData.areaType]);
 
+  useEffect(() => {
+    const fetchAssignedOfficer = async () => {
+      setAssignedOfficer(null);
+      if (!formData.location || !formData.areaType) return;
+      // 1. Find location ID by name
+      const { data: locs } = await supabase
+        .from("locations")
+        .select("id")
+        .ilike("name", formData.location)
+        .limit(1);
+      const locId = locs?.[0]?.id;
+      if (locId) {
+        // 2. Find employee assigned to this location (take the first - head/supervisor)
+        const { data: assignments } = await supabase
+          .from("employee_assignments")
+          .select("user_id")
+          .eq("location_id", locId)
+          .limit(1);
+        const userId = assignments?.[0]?.user_id;
+        if (userId) {
+          // 3. Retrieve their name & phone
+          const { data: userRow } = await supabase
+            .from("users")
+            .select("name, phone")
+            .eq("id", userId)
+            .maybeSingle();
+          if (userRow) {
+            setAssignedOfficer({ name: userRow.name || "Officer", phone: userRow.phone || "N/A" });
+          }
+        }
+      }
+    };
+    fetchAssignedOfficer();
+  }, [formData.location, formData.areaType, submittedComplaintId]); // Run when relevant
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -116,10 +152,31 @@ const ComplaintSubmission = () => {
 
     setIsSubmitting(true);
     
-    // Compute Forwarded To
+    // Find the location id first
+    let assignedOfficerId: string | undefined;
+    let locId: string | undefined;
+    const { data: locs } = await supabase
+      .from("locations")
+      .select("id")
+      .ilike("name", formData.location)
+      .limit(1);
+    locId = locs?.[0]?.id;
+
+    // Find assigned officer for that location (optional: head/supervisor)
+    if (locId) {
+      const { data: assignment } = await supabase
+        .from("employee_assignments")
+        .select("user_id")
+        .eq("location_id", locId)
+        .limit(1);
+      assignedOfficerId = assignment?.[0]?.user_id;
+    }
+
+    // Compute Forwarded To (original implementation kept for user display)
     const forwardedTo = getForwardedTo();
 
     setTimeout(() => {
+      // Insert complaint into complaintsStore (simulating DB insert)
       const complaintId = complaintsStore.addComplaint({
         name: user.name,
         phone: user.phone,
@@ -128,12 +185,27 @@ const ComplaintSubmission = () => {
         forwardedTo,
         category: formData.category,
         description: formData.description,
-        image: formData.image
+        image: formData.image,
+        assignedOfficerId, // pass this down to store for assignment
+        locationId: locId // for completeness, in case your store supports it
       });
       
       setIsSubmitting(false);
       setSubmittedComplaintId(complaintId);
       
+      // Update the assigned officer display
+      if (assignedOfficerId) {
+        // Fetch the officer information for confirmation UI
+        const { data: userRow } = await supabase
+          .from("users")
+          .select("name, phone")
+          .eq("id", assignedOfficerId)
+          .maybeSingle();
+        if (userRow) {
+          setAssignedOfficer({ name: userRow.name || "Officer", phone: userRow.phone || "N/A" });
+        }
+      }
+
       toast({
         title: "Complaint Submitted Successfully!",
         description: `Your complaint ID is: ${complaintId}. ✅ Complaint forwarded to: ${forwardedTo}`,
@@ -211,9 +283,18 @@ const ComplaintSubmission = () => {
                     Please save this ID for tracking your complaint status
                   </p>
                   <div className="mt-4">
-                    <h3 className="font-semibold text-ts-text mb-1">📍 Forwarded To:</h3>
-                    <div className="mb-2">{getForwardedTo()}</div>
-                    {/* Display contacts for the selected location if available */}
+                    <h3 className="font-semibold text-ts-text mb-1">📍 Forwarded To (Officer-in-charge):</h3>
+                    {/* Prefer officer info, fallback to "forwardedTo" */}
+                    {assignedOfficer ? (
+                      <div className="mb-2">
+                        <span className="font-semibold">{assignedOfficer.name}</span>
+                        <span className="mx-2">–</span>
+                        <span className="text-blue-900">{assignedOfficer.phone}</span>
+                      </div>
+                    ) : (
+                      <div className="mb-2">{getForwardedTo()}</div>
+                    )}
+                    {/* Also show contacts for the location as before */}
                     {locationContacts.length > 0 && (
                       <div className="bg-blue-50 rounded p-4 mt-2 text-left">
                         <h4 className="font-medium text-blue-700 mb-1">📞 Key Contacts</h4>
