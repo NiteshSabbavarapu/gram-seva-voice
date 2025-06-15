@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,53 +8,64 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Search, Home, Check, ArrowUp } from "lucide-react";
+import { Search, Home, CheckCircle, Clock, FileText } from "lucide-react";
+import { complaintsStore, Complaint } from "@/lib/complaintsStore";
 
 const ComplaintTracking = () => {
-  const [complaintId, setComplaintId] = useState("");
-  const [complaintData, setComplaintData] = useState(null);
+  const [searchParams] = useSearchParams();
+  const [complaintId, setComplaintId] = useState(searchParams.get('id') || "");
+  const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
-  const handleSearch = async () => {
-    if (!complaintId.trim()) return;
-    
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (id) {
+      setComplaintId(id);
+      handleSearch(id);
+    }
+  }, [searchParams]);
+
+  const handleSearch = (id?: string) => {
+    const searchId = id || complaintId;
+    if (!searchId.trim()) return;
+
     setIsSearching(true);
+    setNotFound(false);
     
     // Simulate API call
     setTimeout(() => {
-      // Mock complaint data
-      setComplaintData({
-        id: complaintId,
-        status: "In Progress",
-        category: "Roads & Infrastructure",
-        description: "Pothole on main road causing traffic issues",
-        submittedDate: "2024-06-10",
-        assignedOfficer: "Sri Ramesh Kumar",
-        remarks: "Survey completed. Work order issued to contractor.",
-        resolutionImage: null
-      });
+      const foundComplaint = complaintsStore.getComplaintById(searchId.trim());
+      setComplaint(foundComplaint || null);
+      setNotFound(!foundComplaint);
       setIsSearching(false);
-    }, 1500);
+    }, 1000);
   };
 
-  const getStatusColor = (status) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
-      case "Submitted": return "bg-ts-secondary text-black";
-      case "In Progress": return "bg-ts-progress text-black";
-      case "Resolved": return "bg-ts-success text-black";
-      default: return "bg-gray-500 text-white";
+      case "Submitted":
+        return <FileText className="h-5 w-5" />;
+      case "In Progress":
+        return <Clock className="h-5 w-5" />;
+      case "Resolved":
+        return <CheckCircle className="h-5 w-5" />;
+      default:
+        return <FileText className="h-5 w-5" />;
     }
   };
 
-  const getStatusSteps = (currentStatus) => {
-    const steps = ["Submitted", "In Progress", "Resolved"];
-    const currentIndex = steps.indexOf(currentStatus);
-    
-    return steps.map((step, index) => ({
-      name: step,
-      completed: index <= currentIndex,
-      current: index === currentIndex
-    }));
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Submitted":
+        return "bg-yellow-100 text-yellow-800 border-yellow-300";
+      case "In Progress":
+        return "bg-blue-100 text-blue-800 border-blue-300";
+      case "Resolved":
+        return "bg-green-100 text-green-800 border-green-300";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-300";
+    }
   };
 
   return (
@@ -73,7 +84,7 @@ const ComplaintTracking = () => {
         </div>
 
         <div className="max-w-2xl mx-auto">
-          <Card className="shadow-xl rounded-xl border-0 mb-8">
+          <Card className="shadow-xl rounded-xl border-0 mb-6">
             <CardHeader className="bg-gradient-to-r from-ts-accent to-teal-600 text-white rounded-t-xl">
               <CardTitle className="text-2xl font-bold flex items-center">
                 <Search className="mr-3 h-6 w-6" />
@@ -86,98 +97,101 @@ const ComplaintTracking = () => {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="complaintId" className="text-ts-text font-medium">
-                    Enter Complaint ID / ఫిర్యాదు ID ఎంటర్ చేయండి
+                    Complaint ID / ఫిర్యాదు ID
                   </Label>
-                  <div className="flex gap-3 mt-2">
-                    <Input
-                      id="complaintId"
-                      type="text"
-                      value={complaintId}
-                      onChange={(e) => setComplaintId(e.target.value)}
-                      className="rounded-lg border-gray-300 focus:border-ts-accent"
-                      placeholder="e.g., TS123456"
-                    />
-                    <Button 
-                      onClick={handleSearch}
-                      disabled={isSearching}
-                      className="bg-ts-accent hover:bg-teal-600 text-white font-semibold px-6 rounded-lg"
-                    >
-                      {isSearching ? "Searching..." : "Search"}
-                    </Button>
-                  </div>
+                  <Input
+                    id="complaintId"
+                    type="text"
+                    value={complaintId}
+                    onChange={(e) => setComplaintId(e.target.value)}
+                    className="mt-2 rounded-lg border-gray-300 focus:border-ts-primary"
+                    placeholder="Enter your complaint ID (e.g., TS123456)"
+                  />
                 </div>
+
+                <Button 
+                  onClick={() => handleSearch()}
+                  disabled={isSearching || !complaintId.trim()}
+                  className="w-full bg-ts-accent hover:bg-teal-600 text-white font-semibold py-3 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                >
+                  {isSearching ? "Searching..." : "Track Complaint"}
+                </Button>
               </div>
             </CardContent>
           </Card>
 
-          {complaintData && (
+          {/* Results */}
+          {notFound && (
+            <Card className="shadow-lg rounded-xl border-0 text-center">
+              <CardContent className="p-8">
+                <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-ts-text mb-2">
+                  Complaint Not Found
+                </h3>
+                <p className="text-ts-text-secondary">
+                  Please check your complaint ID and try again.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {complaint && (
             <Card className="shadow-xl rounded-xl border-0">
-              <CardHeader className="bg-ts-card border-b">
+              <CardHeader className="border-b border-gray-200">
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-xl text-ts-text mb-2">
-                      Complaint ID: {complaintData.id}
+                    <CardTitle className="text-xl font-bold text-ts-text">
+                      {complaint.category}
                     </CardTitle>
-                    <p className="text-ts-text-secondary">
-                      Submitted on: {complaintData.submittedDate}
-                    </p>
+                    <p className="text-ts-text-secondary">ID: {complaint.id}</p>
                   </div>
-                  <Badge className={getStatusColor(complaintData.status)}>
-                    {complaintData.status}
+                  <Badge className={`${getStatusColor(complaint.status)} border font-medium flex items-center`}>
+                    {getStatusIcon(complaint.status)}
+                    <span className="ml-1">{complaint.status}</span>
                   </Badge>
                 </div>
               </CardHeader>
               
-              <CardContent className="p-8">
-                {/* Progress Steps */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold text-ts-text mb-4">Progress</h3>
-                  <div className="flex items-center justify-between">
-                    {getStatusSteps(complaintData.status).map((step, index) => (
-                      <div key={step.name} className="flex flex-col items-center flex-1">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
-                          step.completed 
-                            ? 'bg-ts-primary text-white' 
-                            : 'bg-gray-200 text-gray-500'
-                        }`}>
-                          {step.completed ? <Check className="h-5 w-5" /> : <ArrowUp className="h-5 w-5" />}
-                        </div>
-                        <span className={`text-sm font-medium ${
-                          step.completed ? 'text-ts-primary' : 'text-gray-500'
-                        }`}>
-                          {step.name}
-                        </span>
-                        {index < 2 && (
-                          <div className={`h-1 w-full mt-2 ${
-                            step.completed ? 'bg-ts-primary' : 'bg-gray-200'
-                          }`} />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Complaint Details */}
+              <CardContent className="p-6">
                 <div className="space-y-4">
                   <div>
-                    <h4 className="font-semibold text-ts-text mb-1">Category</h4>
-                    <p className="text-ts-text-secondary">{complaintData.category}</p>
+                    <h4 className="font-semibold text-ts-text mb-2">Complaint Details</h4>
+                    <p className="text-ts-text-secondary">{complaint.description}</p>
                   </div>
-                  
-                  <div>
-                    <h4 className="font-semibold text-ts-text mb-1">Description</h4>
-                    <p className="text-ts-text-secondary">{complaintData.description}</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <span className="font-medium text-ts-text">Submitted Date:</span>
+                      <p className="text-ts-text-secondary">
+                        {new Date(complaint.submittedDate).toLocaleDateString('en-IN')}
+                      </p>
+                    </div>
+                    {complaint.location && (
+                      <div>
+                        <span className="font-medium text-ts-text">Location:</span>
+                        <p className="text-ts-text-secondary">{complaint.location}</p>
+                      </div>
+                    )}
+                    {complaint.assignedOfficer && (
+                      <div>
+                        <span className="font-medium text-ts-text">Assigned Officer:</span>
+                        <p className="text-ts-text-secondary">{complaint.assignedOfficer}</p>
+                      </div>
+                    )}
+                    <div>
+                      <span className="font-medium text-ts-text">Contact:</span>
+                      <p className="text-ts-text-secondary">{complaint.phone}</p>
+                    </div>
                   </div>
-                  
-                  <div>
-                    <h4 className="font-semibold text-ts-text mb-1">Assigned Officer</h4>
-                    <p className="text-ts-text-secondary">{complaintData.assignedOfficer}</p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-semibold text-ts-text mb-1">Latest Update</h4>
-                    <p className="text-ts-text-secondary">{complaintData.remarks}</p>
-                  </div>
+
+                  {complaint.status === "Resolved" && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-green-800 mb-2">✅ Resolution</h4>
+                      <p className="text-green-700">
+                        Your complaint has been successfully resolved. Thank you for using TS Gram Seva.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

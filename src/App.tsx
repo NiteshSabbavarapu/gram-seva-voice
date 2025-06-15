@@ -10,6 +10,7 @@ import ComplaintTracking from "./pages/ComplaintTracking";
 import OfficialLogin from "./pages/OfficialLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import Contact from "./pages/Contact";
+import MyComplaints from "./pages/MyComplaints";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/submit-complaint" element={<ComplaintSubmission />} />
           <Route path="/track-complaint" element={<ComplaintTracking />} />
+          <Route path="/my-complaints" element={<MyComplaints />} />
           <Route path="/official-login" element={<OfficialLogin />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
           <Route path="/contact" element={<Contact />} />

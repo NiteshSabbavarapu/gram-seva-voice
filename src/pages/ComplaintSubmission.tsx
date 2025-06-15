@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,11 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { ArrowUp, Home } from "lucide-react";
+import { ArrowUp, Home, CheckCircle, FileText } from "lucide-react";
 import { complaintsStore } from "@/lib/complaintsStore";
 
 const ComplaintSubmission = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -24,6 +24,7 @@ const ComplaintSubmission = () => {
     image: null as File | null
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedComplaintId, setSubmittedComplaintId] = useState<string | null>(null);
 
   const categories = [
     "Roads & Infrastructure",
@@ -61,24 +62,95 @@ const ComplaintSubmission = () => {
       });
       
       setIsSubmitting(false);
+      setSubmittedComplaintId(complaintId);
       
       toast({
         title: "Complaint Submitted Successfully!",
         description: `Your complaint ID is: ${complaintId}. Please save this for tracking.`,
         className: "bg-ts-success text-black"
       });
-      
-      // Reset form
-      setFormData({
-        name: "",
-        phone: "",
-        location: "",
-        category: "",
-        description: "",
-        image: null
-      });
     }, 2000);
   };
+
+  const handleViewMyComplaints = () => {
+    navigate(`/my-complaints?phone=${encodeURIComponent(formData.phone)}`);
+  };
+
+  const handleSubmitAnother = () => {
+    setSubmittedComplaintId(null);
+    setFormData({
+      name: "",
+      phone: "",
+      location: "",
+      category: "",
+      description: "",
+      image: null
+    });
+  };
+
+  if (submittedComplaintId) {
+    return (
+      <div className="min-h-screen bg-ts-background font-poppins">
+        <Header />
+        
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto">
+            <Card className="shadow-xl rounded-xl border-0 text-center">
+              <CardHeader className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-t-xl">
+                <div className="mx-auto mb-4">
+                  <CheckCircle className="h-16 w-16 text-white" />
+                </div>
+                <CardTitle className="text-2xl font-bold">
+                  Complaint Submitted Successfully!
+                </CardTitle>
+                <p className="text-white/90 font-telugu">ఫిర్యాదు విజయవంతంగా నమోదయ్యింది!</p>
+              </CardHeader>
+              
+              <CardContent className="p-8">
+                <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                  <h3 className="text-lg font-semibold text-ts-text mb-2">Your Complaint ID</h3>
+                  <div className="text-3xl font-bold text-ts-primary mb-2">{submittedComplaintId}</div>
+                  <p className="text-sm text-ts-text-secondary">
+                    Please save this ID for tracking your complaint status
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <Button 
+                    onClick={handleViewMyComplaints}
+                    className="w-full bg-ts-primary hover:bg-ts-primary-dark text-white font-semibold py-3 rounded-lg shadow-lg"
+                  >
+                    <FileText className="mr-2 h-5 w-5" />
+                    View My Complaints
+                  </Button>
+                  
+                  <Button 
+                    onClick={handleSubmitAnother}
+                    variant="outline"
+                    className="w-full border-ts-primary text-ts-primary hover:bg-ts-primary hover:text-white font-semibold py-3 rounded-lg"
+                  >
+                    Submit Another Complaint
+                  </Button>
+                  
+                  <Link to="/">
+                    <Button 
+                      variant="ghost"
+                      className="w-full text-ts-text-secondary hover:text-ts-primary hover:bg-gray-100 font-medium py-3 rounded-lg"
+                    >
+                      <Home className="mr-2 h-4 w-4" />
+                      Back to Home
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+        
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-ts-background font-poppins">
