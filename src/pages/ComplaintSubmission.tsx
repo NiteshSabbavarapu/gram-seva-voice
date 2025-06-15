@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,7 @@ const ComplaintSubmission = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [formData, setFormData] = useState({
     location: "",
+    areaType: "" as "Village" | "City" | "",
     category: "",
     description: "",
     image: null as File | null
@@ -46,8 +46,29 @@ const ComplaintSubmission = () => {
     }
   }, [isAuthenticated]);
 
-  const handleLocationDetected = (location: string) => {
-    setFormData({ ...formData, location });
+  const handleLocationDetected = (location: string, areaType: "Village" | "City" | "") => {
+    setFormData((prev) => ({
+      ...prev,
+      // Only update location if detected
+      location: location !== "" ? location : prev.location,
+      areaType: areaType !== "" ? areaType : prev.areaType
+    }));
+  };
+
+  const getForwardedTo = () => {
+    if (formData.areaType === "Village") {
+      // Extract village name from location string if possible
+      const villageMatch = formData.location.match(/([^,]+)/);
+      const village = villageMatch ? villageMatch[1].trim() : formData.location;
+      return `Gram Panchayat – ${village}`;
+    }
+    if (formData.areaType === "City") {
+      // Try to extract city name
+      const cityMatch = formData.location.match(/([^,]+)/);
+      const city = cityMatch ? cityMatch[1].trim() : formData.location;
+      return `${city} Municipality Office`;
+    }
+    return "Unknown Authority";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,10 +79,10 @@ const ComplaintSubmission = () => {
       return;
     }
 
-    if (!formData.category || !formData.description) {
+    if (!formData.category || !formData.description || !formData.location || !formData.areaType) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields.",
+        description: "Please fill in all required fields, including area type.",
         variant: "destructive"
       });
       return;
@@ -69,12 +90,16 @@ const ComplaintSubmission = () => {
 
     setIsSubmitting(true);
     
-    // Simulate API call
+    // Compute Forwarded To
+    const forwardedTo = getForwardedTo();
+
     setTimeout(() => {
       const complaintId = complaintsStore.addComplaint({
         name: user.name,
         phone: user.phone,
         location: formData.location,
+        areaType: formData.areaType,
+        forwardedTo,
         category: formData.category,
         description: formData.description,
         image: formData.image
@@ -85,7 +110,7 @@ const ComplaintSubmission = () => {
       
       toast({
         title: "Complaint Submitted Successfully!",
-        description: `Your complaint ID is: ${complaintId}. Please save this for tracking.`,
+        description: `Your complaint ID is: ${complaintId}. ✅ Complaint forwarded to: ${forwardedTo}`,
         className: "bg-ts-success text-black"
       });
     }, 2000);
@@ -255,6 +280,27 @@ const ComplaintSubmission = () => {
                     />
                     <LocationDetector onLocationDetected={handleLocationDetected} />
                   </div>
+                </div>
+
+                {/* NEW: Area Type Field */}
+                <div>
+                  <Label htmlFor="areaType" className="text-ts-text font-medium">
+                    Area Type / ప్రాంత రకం
+                  </Label>
+                  <Input
+                    id="areaType"
+                    type="text"
+                    value={
+                      formData.areaType
+                        ? formData.areaType === "Village"
+                          ? "Village (గ్రామం)"
+                          : "City (నగరం)"
+                        : ""
+                    }
+                    readOnly
+                    className="rounded-lg border-gray-300 bg-gray-100 text-gray-600"
+                    placeholder="Auto-filled after location detection"
+                  />
                 </div>
 
                 <div>

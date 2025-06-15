@@ -4,6 +4,8 @@ export interface Complaint {
   name: string;
   phone: string;
   location: string;
+  areaType?: "Village" | "City" | ""; // NEW
+  forwardedTo?: string; // NEW
   category: string;
   description: string;
   status: "Submitted" | "In Progress" | "Resolved";
@@ -20,6 +22,8 @@ class ComplaintsStore {
       name: "Ravi Kumar",
       phone: "9876543210",
       location: "Yellandu, Khammam",
+      areaType: "Village",
+      forwardedTo: "Gram Panchayat – Yellandu",
       category: "Roads & Infrastructure",
       description: "Pothole on main road causing traffic issues",
       status: "Submitted",
@@ -31,6 +35,8 @@ class ComplaintsStore {
       name: "Lakshmi Devi",
       phone: "9876543211",
       location: "Warangal Urban",
+      areaType: "City",
+      forwardedTo: "Warangal Municipality Office",
       category: "Water Supply",
       description: "No water supply for 3 days in our area",
       status: "In Progress",
@@ -42,6 +48,8 @@ class ComplaintsStore {
       name: "Mahesh Reddy",
       phone: "9876543212", 
       location: "Nizamabad",
+      areaType: "City",
+      forwardedTo: "Nizamabad Municipality Office",
       category: "Electricity",
       description: "Frequent power cuts in the village",
       status: "Resolved",

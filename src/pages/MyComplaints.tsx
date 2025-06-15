@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -191,7 +190,7 @@ const MyComplaints = () => {
                         </CardHeader>
                         
                         <CardContent className="pt-0">
-                          <div className="mb-4">
+                          <div className="mb-3">
                             <p className="text-ts-text line-clamp-2">
                               {complaint.description}
                             </p>
@@ -200,6 +199,21 @@ const MyComplaints = () => {
                                 📍 {complaint.location}
                               </p>
                             )}
+                            {/* Show Area Type and ForwardedTo */}
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs md:text-sm text-gray-700">
+                              <span>
+                                <span className="font-bold">Area Type:</span>{" "}
+                                {complaint.areaType === "Village"
+                                  ? "Village (గ్రామం)"
+                                  : complaint.areaType === "City"
+                                  ? "City (నగరం)"
+                                  : "-"}
+                              </span>
+                              <span>
+                                <span className="font-bold">Forwarded To:</span>{" "}
+                                {complaint.forwardedTo || "-"}
+                              </span>
+                            </div>
                             {complaint.assignedOfficer && (
                               <p className="text-sm text-ts-accent mt-1">
                                 👤 Assigned to: {complaint.assignedOfficer}
