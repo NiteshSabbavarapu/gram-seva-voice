@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,15 +10,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { ArrowUp, Home, CheckCircle, FileText } from "lucide-react";
+import LoginModal from "@/components/LoginModal";
+import LocationDetector from "@/components/LocationDetector";
+import { ArrowUp, Home, CheckCircle, FileText, User, Phone } from "lucide-react";
 import { complaintsStore } from "@/lib/complaintsStore";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ComplaintSubmission = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
     location: "",
     category: "",
     description: "",
@@ -28,7 +32,7 @@ const ComplaintSubmission = () => {
 
   const categories = [
     "Roads & Infrastructure",
-    "Water Supply",
+    "Water Supply", 
     "Electricity",
     "Healthcare",
     "Education",
@@ -36,10 +40,25 @@ const ComplaintSubmission = () => {
     "Other"
   ];
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+    }
+  }, [isAuthenticated]);
+
+  const handleLocationDetected = (location: string) => {
+    setFormData({ ...formData, location });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.phone || !formData.category || !formData.description) {
+    if (!isAuthenticated || !user) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    if (!formData.category || !formData.description) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -53,8 +72,8 @@ const ComplaintSubmission = () => {
     // Simulate API call
     setTimeout(() => {
       const complaintId = complaintsStore.addComplaint({
-        name: formData.name,
-        phone: formData.phone,
+        name: user.name,
+        phone: user.phone,
         location: formData.location,
         category: formData.category,
         description: formData.description,
@@ -73,20 +92,46 @@ const ComplaintSubmission = () => {
   };
 
   const handleViewMyComplaints = () => {
-    navigate(`/my-complaints?phone=${encodeURIComponent(formData.phone)}`);
+    navigate(`/my-complaints?phone=${encodeURIComponent(user?.phone || '')}`);
   };
 
   const handleSubmitAnother = () => {
     setSubmittedComplaintId(null);
     setFormData({
-      name: "",
-      phone: "",
       location: "",
       category: "",
       description: "",
       image: null
     });
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-ts-background font-poppins">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <Card className="max-w-md mx-auto text-center">
+            <CardContent className="p-8">
+              <h3 className="text-xl font-semibold text-ts-text mb-4">
+                Login Required
+              </h3>
+              <p className="text-ts-text-secondary mb-6">
+                Please login to submit a complaint.
+              </p>
+              <Button 
+                onClick={() => setShowLoginModal(true)}
+                className="bg-ts-primary hover:bg-ts-primary-dark"
+              >
+                Login to Continue
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+        {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+        <Footer />
+      </div>
+    );
+  }
 
   if (submittedComplaintId) {
     return (
@@ -168,6 +213,22 @@ const ComplaintSubmission = () => {
         </div>
 
         <div className="max-w-2xl mx-auto">
+          {/* User Info Display */}
+          {user && (
+            <Card className="mb-6 border-green-200 bg-green-50">
+              <CardContent className="p-4">
+                <h3 className="text-lg font-semibold text-green-800 mb-2 flex items-center">
+                  <User className="mr-2 h-5 w-5" />
+                  Welcome, {user.name}!
+                </h3>
+                <p className="text-green-700 flex items-center">
+                  <Phone className="mr-2 h-4 w-4" />
+                  {user.phone}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="shadow-xl rounded-xl border-0">
             <CardHeader className="bg-gradient-to-r from-ts-primary to-ts-primary-dark text-white rounded-t-xl">
               <CardTitle className="text-2xl font-bold flex items-center">
@@ -180,46 +241,20 @@ const ComplaintSubmission = () => {
             <CardContent className="p-8">
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <Label htmlFor="name" className="text-ts-text font-medium">
-                    Name (Optional) / పేరు
-                  </Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="mt-2 rounded-lg border-gray-300 focus:border-ts-primary"
-                    placeholder="Enter your name"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="phone" className="text-ts-text font-medium">
-                    Phone Number (Required) * / ఫోన్ నంబర్
-                  </Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    required
-                    value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    className="mt-2 rounded-lg border-gray-300 focus:border-ts-primary"
-                    placeholder="Enter your mobile number"
-                  />
-                </div>
-
-                <div>
                   <Label htmlFor="location" className="text-ts-text font-medium">
                     Location / స్థానం
                   </Label>
-                  <Input
-                    id="location"
-                    type="text"
-                    value={formData.location}
-                    onChange={(e) => setFormData({...formData, location: e.target.value})}
-                    className="mt-2 rounded-lg border-gray-300 focus:border-ts-primary"
-                    placeholder="Village, Mandal, District"
-                  />
+                  <div className="mt-2 space-y-2">
+                    <Input
+                      id="location"
+                      type="text"
+                      value={formData.location}
+                      onChange={(e) => setFormData({...formData, location: e.target.value})}
+                      className="rounded-lg border-gray-300 focus:border-ts-primary"
+                      placeholder="Village, Mandal, District or auto-detected coordinates"
+                    />
+                    <LocationDetector onLocationDetected={handleLocationDetected} />
+                  </div>
                 </div>
 
                 <div>
@@ -280,6 +315,7 @@ const ComplaintSubmission = () => {
         </div>
       </div>
       
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
       <Footer />
     </div>
   );

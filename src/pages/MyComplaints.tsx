@@ -7,12 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { ArrowLeft, Eye, FileText, Home } from "lucide-react";
+import LoginModal from "@/components/LoginModal";
+import { ArrowLeft, Eye, FileText, Home, User, Phone } from "lucide-react";
 import { complaintsStore, Complaint } from "@/lib/complaintsStore";
+import { useAuth } from "@/contexts/AuthContext";
 
 const MyComplaints = () => {
   const [searchParams] = useSearchParams();
-  const phoneNumber = searchParams.get('phone');
+  const { user, isAuthenticated } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  
+  // Use authenticated user's phone or fallback to URL param
+  const phoneNumber = user?.phone || searchParams.get('phone');
   
   // Get all complaints and filter by phone number if provided
   const allComplaints = complaintsStore.getComplaints();
@@ -21,6 +27,35 @@ const MyComplaints = () => {
     : [];
 
   const [activeTab, setActiveTab] = useState("all");
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 font-poppins">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <Card className="max-w-md mx-auto text-center">
+            <CardContent className="p-8">
+              <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-ts-text mb-4">
+                Login Required
+              </h3>
+              <p className="text-ts-text-secondary mb-6">
+                Please login to view your complaints.
+              </p>
+              <Button 
+                onClick={() => setShowLoginModal(true)}
+                className="bg-ts-primary hover:bg-ts-primary-dark text-white"
+              >
+                Login to Continue
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+        {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+        <Footer />
+      </div>
+    );
+  }
 
   const getStatusColor = (status: Complaint['status']) => {
     switch (status) {
@@ -70,29 +105,36 @@ const MyComplaints = () => {
               <FileText className="mr-3 h-8 w-8 text-ts-primary" />
               My Complaints
             </h1>
-            <p className="text-ts-text-secondary font-telugu">
+            <p className="text-ts-text-secondary font-telugu mb-4">
               మీ ఫిర్యాదుల స్థితిని ట్రాక్ చేయండి
             </p>
+            
+            {/* User Info */}
+            {user && (
+              <Card className="mb-6 border-green-200 bg-green-50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-green-800 flex items-center">
+                        <User className="mr-2 h-4 w-4" />
+                        {user.name}
+                      </h3>
+                      <p className="text-green-700 flex items-center text-sm">
+                        <Phone className="mr-2 h-3 w-3" />
+                        {user.phone}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-green-600">Total Complaints</p>
+                      <p className="text-2xl font-bold text-green-800">{userComplaints.length}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
-          {!phoneNumber ? (
-            <Card className="shadow-lg rounded-xl border-0 text-center py-12">
-              <CardContent>
-                <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-ts-text mb-2">
-                  No Phone Number Provided
-                </h3>
-                <p className="text-ts-text-secondary mb-6">
-                  Please access this page through the complaint submission confirmation.
-                </p>
-                <Link to="/submit-complaint">
-                  <Button className="bg-ts-primary hover:bg-ts-primary-dark text-white">
-                    Submit a Complaint
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          ) : userComplaints.length === 0 ? (
+          {userComplaints.length === 0 ? (
             <Card className="shadow-lg rounded-xl border-0 text-center py-12">
               <CardContent>
                 <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -165,10 +207,7 @@ const MyComplaints = () => {
                             )}
                           </div>
                           
-                          <div className="flex justify-between items-center">
-                            <div className="text-sm text-ts-text-secondary">
-                              Phone: {complaint.phone}
-                            </div>
+                          <div className="flex justify-end">
                             <Link to={`/track-complaint?id=${complaint.id}`}>
                               <Button 
                                 size="sm" 

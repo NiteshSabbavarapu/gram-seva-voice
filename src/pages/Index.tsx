@@ -1,102 +1,139 @@
+
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { ArrowUp, Check, Search } from "lucide-react";
+import LoginModal from "@/components/LoginModal";
+import { ArrowRight, FileText, Search, Shield, MapPin, Clock, CheckCircle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
+  const { isAuthenticated } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  const handleSubmitComplaint = () => {
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-ts-background font-poppins">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 font-poppins">
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-ts-primary to-ts-primary-dark text-white py-16 md:py-24">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-3xl md:text-5xl font-bold mb-4 animate-fade-in">
-            Your Voice, Our Action
+      <section className="py-20 px-4">
+        <div className="container mx-auto text-center">
+          <h1 className="text-4xl md:text-6xl font-bold text-ts-text mb-6">
+            Voice Your Concerns,
+            <span className="text-ts-primary block">Drive Change</span>
           </h1>
-          <p className="text-lg md:text-xl text-white/90 mb-2 font-telugu">
-            మీ గొంతు, మా చర్య
+          <p className="text-xl text-ts-text-secondary mb-4 max-w-2xl mx-auto">
+            A digital platform connecting Telangana citizens with government officials for faster complaint resolution
           </p>
-          <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Connect with Telangana Government services. Submit grievances, track progress, and get solutions.
+          <p className="text-lg font-telugu text-ts-accent mb-8">
+            తెలంగాణ ప్రజల గొంతుకను ప్రభుత్వానికి చేరవేసే డిజిటల్ వేదిక
           </p>
           
-          {/* CTA Buttons */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto mt-12">
-            <Link to="/submit-complaint">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            {isAuthenticated ? (
+              <Link to="/submit-complaint">
+                <Button size="lg" className="bg-ts-primary hover:bg-ts-primary-dark text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-lg transform hover:scale-105 transition-all duration-200">
+                  Submit Complaint
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+            ) : (
               <Button 
                 size="lg" 
-                className="w-full bg-ts-secondary hover:bg-ts-secondary/90 text-black font-semibold py-6 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
+                onClick={handleSubmitComplaint}
+                className="bg-ts-primary hover:bg-ts-primary-dark text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-lg transform hover:scale-105 transition-all duration-200"
               >
-                <ArrowUp className="mr-2 h-5 w-5" />
-                Submit a Complaint
+                Submit Complaint
+                <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-            </Link>
+            )}
             
             <Link to="/track-complaint">
               <Button 
+                variant="outline" 
                 size="lg" 
-                className="w-full bg-white border-2 border-white text-ts-primary hover:bg-gray-100 font-semibold py-6 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
+                className="border-2 border-ts-primary text-ts-primary hover:bg-ts-primary hover:text-white px-8 py-4 text-lg font-semibold rounded-lg transition-all duration-200"
               >
                 <Search className="mr-2 h-5 w-5" />
-                Track Complaint
-              </Button>
-            </Link>
-            
-            <Link to="/official-login">
-              <Button 
-                size="lg" 
-                className="w-full bg-white border-2 border-white text-ts-primary hover:bg-gray-100 font-semibold py-6 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
-              >
-                Login as Official
+                Track Status
               </Button>
             </Link>
           </div>
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-ts-text mb-12">
-            How It Works
+      {/* Features Section */}
+      <section className="py-16 px-4 bg-white">
+        <div className="container mx-auto">
+          <h2 className="text-3xl font-bold text-center text-ts-text mb-4">
+            How TS Gram Seva Works
           </h2>
+          <p className="text-center text-ts-text-secondary mb-12 font-telugu">
+            సులభమైన ప్రక్రియలో మీ సమస్యలను పరిష్కరించుకోండి
+          </p>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <Card className="text-center p-6 shadow-lg rounded-xl border-0 hover:shadow-xl transition-shadow">
-              <CardContent className="pt-6">
-                <div className="bg-ts-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <ArrowUp className="h-8 w-8 text-ts-primary" />
+          <div className="grid md:grid-cols-3 gap-8">
+            <Card className="text-center shadow-lg hover:shadow-xl transition-shadow border-0">
+              <CardHeader className="pb-4">
+                <div className="mx-auto bg-ts-primary p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                  <FileText className="h-8 w-8 text-white" />
                 </div>
-                <h3 className="text-xl font-semibold text-ts-text mb-2">1. Submit</h3>
+                <CardTitle className="text-xl font-semibold text-ts-text">
+                  Submit Complaint
+                </CardTitle>
+                <p className="text-sm text-ts-text-secondary font-telugu">
+                  ఫిర్యాదు నమోదు చేయండి
+                </p>
+              </CardHeader>
+              <CardContent>
                 <p className="text-ts-text-secondary">
-                  Share your grievance with location and details
+                  Register your complaint with location, category, and detailed description for quick processing.
                 </p>
               </CardContent>
             </Card>
-            
-            <Card className="text-center p-6 shadow-lg rounded-xl border-0 hover:shadow-xl transition-shadow">
-              <CardContent className="pt-6">
-                <div className="bg-ts-secondary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Search className="h-8 w-8 text-ts-secondary" />
+
+            <Card className="text-center shadow-lg hover:shadow-xl transition-shadow border-0">
+              <CardHeader className="pb-4">
+                <div className="mx-auto bg-ts-accent p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                  <Shield className="h-8 w-8 text-white" />
                 </div>
-                <h3 className="text-xl font-semibold text-ts-text mb-2">2. Track</h3>
+                <CardTitle className="text-xl font-semibold text-ts-text">
+                  Official Review
+                </CardTitle>
+                <p className="text-sm text-ts-text-secondary font-telugu">
+                  అధికారిక సమీక్ష
+                </p>
+              </CardHeader>
+              <CardContent>
                 <p className="text-ts-text-secondary">
-                  Monitor progress with your complaint ID
+                  Government officials review and assign your complaint to the appropriate department.
                 </p>
               </CardContent>
             </Card>
-            
-            <Card className="text-center p-6 shadow-lg rounded-xl border-0 hover:shadow-xl transition-shadow">
-              <CardContent className="pt-6">
-                <div className="bg-ts-success/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Check className="h-8 w-8 text-ts-primary" />
+
+            <Card className="text-center shadow-lg hover:shadow-xl transition-shadow border-0">
+              <CardHeader className="pb-4">
+                <div className="mx-auto bg-green-600 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                  <CheckCircle className="h-8 w-8 text-white" />
                 </div>
-                <h3 className="text-xl font-semibold text-ts-text mb-2">3. Resolve</h3>
+                <CardTitle className="text-xl font-semibold text-ts-text">
+                  Resolution
+                </CardTitle>
+                <p className="text-sm text-ts-text-secondary font-telugu">
+                  సమస్య పరిష్కారం
+                </p>
+              </CardHeader>
+              <CardContent>
                 <p className="text-ts-text-secondary">
-                  Get solutions from assigned officials
+                  Track your complaint status and receive updates until the issue is resolved.
                 </p>
               </CardContent>
             </Card>
@@ -104,45 +141,74 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Statistics Section */}
-      <section className="py-16 bg-ts-background">
-        <div className="container mx-auto px-4">
+      {/* Quick Actions */}
+      <section className="py-16 px-4 bg-gray-50">
+        <div className="container mx-auto">
           <h2 className="text-3xl font-bold text-center text-ts-text mb-12">
-            Our Impact
+            Quick Actions
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-            <Card className="text-center p-6 bg-gradient-to-br from-ts-primary to-ts-primary-dark text-white rounded-xl shadow-lg">
-              <CardContent className="pt-6">
-                <h3 className="text-3xl font-bold mb-2">12,847</h3>
-                <p className="text-white/90">Complaints Resolved</p>
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <Card className="shadow-lg hover:shadow-xl transition-shadow border-0">
+              <CardHeader className="bg-gradient-to-r from-ts-primary to-ts-primary-dark text-white">
+                <CardTitle className="text-xl font-semibold flex items-center">
+                  <MapPin className="mr-3 h-6 w-6" />
+                  Submit New Complaint
+                </CardTitle>
+                <p className="text-white/90 font-telugu">
+                  కొత్త ఫిర్యాదు నమోదు చేయండి
+                </p>
+              </CardHeader>
+              <CardContent className="p-6">
+                <p className="text-ts-text-secondary mb-4">
+                  Report issues related to roads, water supply, electricity, healthcare, and more.
+                </p>
+                {isAuthenticated ? (
+                  <Link to="/submit-complaint">
+                    <Button className="w-full bg-ts-primary hover:bg-ts-primary-dark text-white">
+                      Submit Complaint
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button 
+                    onClick={handleSubmitComplaint}
+                    className="w-full bg-ts-primary hover:bg-ts-primary-dark text-white"
+                  >
+                    Login & Submit Complaint
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
               </CardContent>
             </Card>
-            
-            <Card className="text-center p-6 bg-gradient-to-br from-ts-secondary to-yellow-400 text-black rounded-xl shadow-lg">
-              <CardContent className="pt-6">
-                <h3 className="text-3xl font-bold mb-2">1,200+</h3>
-                <p className="text-black/80">Villages Reached</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="text-center p-6 bg-gradient-to-br from-ts-accent to-teal-500 text-white rounded-xl shadow-lg">
-              <CardContent className="pt-6">
-                <h3 className="text-3xl font-bold mb-2">98%</h3>
-                <p className="text-white/90">Satisfaction Rate</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="text-center p-6 bg-gradient-to-br from-ts-success to-green-400 text-black rounded-xl shadow-lg">
-              <CardContent className="pt-6">
-                <h3 className="text-3xl font-bold mb-2">24/7</h3>
-                <p className="text-black/80">Service Available</p>
+
+            <Card className="shadow-lg hover:shadow-xl transition-shadow border-0">
+              <CardHeader className="bg-gradient-to-r from-ts-accent to-teal-600 text-white">
+                <CardTitle className="text-xl font-semibold flex items-center">
+                  <Clock className="mr-3 h-6 w-6" />
+                  Track Complaint Status
+                </CardTitle>
+                <p className="text-white/90 font-telugu">
+                  ఫిర్యాదు స్థితిని తనిఖీ చేయండి
+                </p>
+              </CardHeader>
+              <CardContent className="p-6">
+                <p className="text-ts-text-secondary mb-4">
+                  Enter your complaint ID to check the current status and progress.
+                </p>
+                <Link to="/track-complaint">
+                  <Button className="w-full bg-ts-accent hover:bg-teal-600 text-white">
+                    Track Status
+                    <Search className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           </div>
         </div>
       </section>
 
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
       <Footer />
     </div>
   );

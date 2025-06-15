@@ -1,8 +1,12 @@
 
 import { Link } from "react-router-dom";
-import { Home, FileText } from "lucide-react";
+import { Home, FileText, LogOut, User } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 const Header = () => {
+  const { user, logout, isAuthenticated } = useAuth();
+
   return (
     <header className="bg-ts-primary-dark shadow-lg">
       <div className="container mx-auto px-4 py-4">
@@ -21,32 +25,59 @@ const Header = () => {
             </div>
           </Link>
           
-          <div className="flex space-x-4 md:space-x-6">
+          <div className="flex items-center space-x-4 md:space-x-6">
+            {isAuthenticated && (
+              <div className="hidden md:flex items-center text-white/90 text-sm">
+                <User className="h-4 w-4 mr-1" />
+                <span>{user?.name}</span>
+                <span className="ml-2 text-white/70">({user?.phone})</span>
+              </div>
+            )}
+            
             <Link 
               to="/" 
               className="text-white hover:text-ts-secondary transition-colors font-medium"
             >
               Home
             </Link>
-            <Link 
-              to="/my-complaints" 
-              className="hidden md:flex items-center text-white hover:text-ts-secondary transition-colors font-medium"
-            >
-              <FileText className="h-4 w-4 mr-1" />
-              My Complaints
-            </Link>
-            <Link 
-              to="/my-complaints" 
-              className="md:hidden text-white hover:text-ts-secondary transition-colors"
-            >
-              <FileText className="h-5 w-5" />
-            </Link>
+            
+            {isAuthenticated && (
+              <Link 
+                to="/my-complaints" 
+                className="hidden md:flex items-center text-white hover:text-ts-secondary transition-colors font-medium"
+              >
+                <FileText className="h-4 w-4 mr-1" />
+                My Complaints
+              </Link>
+            )}
+            
+            {isAuthenticated && (
+              <Link 
+                to="/my-complaints" 
+                className="md:hidden text-white hover:text-ts-secondary transition-colors"
+              >
+                <FileText className="h-5 w-5" />
+              </Link>
+            )}
+            
             <Link 
               to="/contact" 
               className="text-white hover:text-ts-secondary transition-colors font-medium"
             >
               Contact
             </Link>
+            
+            {isAuthenticated && (
+              <Button
+                onClick={logout}
+                variant="ghost"
+                size="sm"
+                className="text-white hover:text-ts-secondary hover:bg-white/10"
+              >
+                <LogOut className="h-4 w-4 mr-1" />
+                <span className="hidden md:inline">Logout</span>
+              </Button>
+            )}
           </div>
         </div>
       </div>
