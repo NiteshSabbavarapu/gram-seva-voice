@@ -50,6 +50,13 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
     return cleaned;
   };
 
+  // Validate Indian mobile number
+  const isValidIndianMobile = (phoneNumber: string): boolean => {
+    const cleaned = getIndianPhoneNumber(phoneNumber);
+    // Indian mobile numbers start with 6, 7, 8, or 9
+    return cleaned.length === 10 && /^[6-9]/.test(cleaned);
+  };
+
   // Track user roles
   const specialUser =
     phone === SUPERVISOR_MOBILE
@@ -97,10 +104,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
   // NEW: Send OTP via Supabase for normal users
   const handleSendOTP = async () => {
     const cleanedPhone = getIndianPhoneNumber(phone);
-    if (!cleanedPhone || cleanedPhone.length !== 10) {
+    
+    if (!cleanedPhone || !isValidIndianMobile(cleanedPhone)) {
       toast({
         title: "Invalid Phone Number",
-        description: "Please enter a valid 10-digit Indian mobile number.",
+        description: "Please enter a valid Indian mobile number starting with 6, 7, 8, or 9.",
         variant: "destructive"
       });
       return;
@@ -110,43 +118,86 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
     if (specialUser) {
       setStep('otp');
       toast({
-        title: "OTP Sent!",
-        description: `Using demo login for ${specialUser.name}. Any 6-digit OTP will work.`,
-        className: "bg-green-50 text-green-800 border-green-200"
+        title: "Demo Login",
+        description: `Using demo login for ${specialUser.name}. Enter any 6-digit OTP.`,
+        className: "bg-blue-50 text-blue-800 border-blue-200"
       });
       return;
     }
 
     setIsLoading(true);
-    // Use Supabase's OTP send method
-    const { data, error } = await supabase.auth.signInWithOtp({
-      phone: "+91" + cleanedPhone // Always prepend +91
-    });
-    setIsLoading(false);
-    if (error) {
+    console.log("Attempting to send OTP to:", "+91" + cleanedPhone);
+    
+    try {
+      // Use Supabase's OTP send method
+      const { data, error } = await supabase.auth.signInWithOtp({
+        phone: "+91" + cleanedPhone
+      });
+      
+      console.log("OTP send response:", { data, error });
+      
+      if (error) {
+        console.error("OTP send error:", error);
+        
+        // Handle specific error cases
+        if (error.message.includes("Unsupported phone provider")) {
+          toast({
+            title: "SMS Not Available",
+            description: "SMS authentication is not configured for this project. Please use demo accounts (8000000001 or 9000000001) for testing.",
+            variant: "destructive"
+          });
+        } else if (error.message.includes("SMS quota")) {
+          toast({
+            title: "SMS Quota Exceeded",
+            description: "SMS quota has been exceeded. Please try again later or contact support.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "OTP Send Failed",
+            description: error.message || "Failed to send OTP. Please try demo accounts instead.",
+            variant: "destructive"
+          });
+        }
+        setIsLoading(false);
+        return;
+      }
+      
+      setConfirmation(data || null);
+      setStep('otp');
       toast({
-        title: "OTP Send Failed",
-        description: error.message,
+        title: "OTP Sent!",
+        description: `A verification code was sent to +91${cleanedPhone}.`,
+        className: "bg-green-50 text-green-800 border-green-200"
+      });
+    } catch (err) {
+      console.error("Unexpected error sending OTP:", err);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try demo accounts instead.",
         variant: "destructive"
       });
-      return;
     }
-    setConfirmation(data || null);
-    setStep('otp');
-    toast({
-      title: "OTP Sent!",
-      description: `A verification code was sent to +91${cleanedPhone}.`,
-      className: "bg-green-50 text-green-800 border-green-200"
-    });
+    
+    setIsLoading(false);
   };
 
   // NEW: OTP verification/Sign-in logic
   const handleVerifyOTP = async () => {
     // For demo supervisors/admins, let any OTP work (for quick testing)
     if (specialUser) {
-      handleCompleteLogin(specialUser.name, false);
+      if (otp.length === 6) {
+        handleCompleteLogin(specialUser.name, false);
+      } else {
+        toast({
+          title: "Invalid OTP",
+          description: "Please enter a 6-digit OTP.",
+          variant: "destructive"
+        });
+      }
       return;
     }
+    
     if (!otp || otp.length !== 6) {
       toast({
         title: "Invalid OTP",
@@ -155,41 +206,57 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
       });
       return;
     }
+    
     setIsLoading(true);
-    // Verify via Supabase
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone: "+91" + phone,
-      token: otp,
-      type: "sms"
-    });
-    setIsLoading(false);
-    if (error) {
-      toast({
-        title: "OTP Verification Failed",
-        description: error.message,
-        variant: "destructive"
+    console.log("Verifying OTP for phone:", "+91" + phone);
+    
+    try {
+      // Verify via Supabase
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: "+91" + phone,
+        token: otp,
+        type: "sms"
       });
-      return;
-    }
+      
+      console.log("OTP verify response:", { data, error });
+      
+      if (error) {
+        console.error("OTP verification error:", error);
+        toast({
+          title: "OTP Verification Failed",
+          description: error.message || "Invalid OTP. Please try again.",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+        return;
+      }
 
-    // Success: proceed to next step or login
-    if (data?.user) {
-      // If the user has a name in profile, skip Name step
-      // For minimal MVP, always ask for name if not present
-      const { user } = data;
-      if (user?.user_metadata?.name) {
-        handleCompleteLogin(user.user_metadata.name, true);
+      // Success: proceed to next step or login
+      if (data?.user) {
+        const { user } = data;
+        if (user?.user_metadata?.name) {
+          handleCompleteLogin(user.user_metadata.name, true);
+        } else {
+          setStep('name');
+          toast({
+            title: "OTP Verified!",
+            description: "Phone number verified successfully.",
+            className: "bg-green-50 text-green-800 border-green-200"
+          });
+        }
       } else {
         setStep('name');
-        toast({
-          title: "OTP Verified!",
-          description: "Phone number verified successfully.",
-          className: "bg-green-50 text-green-800 border-green-200"
-        });
       }
-    } else {
-      setStep('name');
+    } catch (err) {
+      console.error("Unexpected error verifying OTP:", err);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred during verification.",
+        variant: "destructive"
+      });
     }
+    
+    setIsLoading(false);
   };
 
   const handleCompleteLogin = async (finalName?: string, closeModal = true) => {
@@ -269,21 +336,26 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                   onChange={(e) => setPhone(getIndianPhoneNumber(e.target.value))}
                   className="mt-2"
                   placeholder="Enter 10-digit mobile number"
-                  maxLength={14} // to allow some room for pasting +91, 0, etc.
+                  maxLength={14}
                 />
-                <div className="text-xs text-gray-500 mt-1">
-                  <span>
-                    For Supervisor Login, use: <b>{SUPERVISOR_MOBILE}</b>
-                  </span>
-                  <br />
-                  <span>
-                    For Admin Login, use: <b>{ADMIN_MOBILE}</b>
-                  </span>
+                <div className="text-xs text-gray-500 mt-1 space-y-1">
+                  <div>
+                    <span className="font-medium text-blue-600">Demo Accounts (No SMS required):</span>
+                  </div>
+                  <div>
+                    Supervisor: <b>{SUPERVISOR_MOBILE}</b>
+                  </div>
+                  <div>
+                    Admin: <b>{ADMIN_MOBILE}</b>
+                  </div>
+                  <div className="text-amber-600 text-xs mt-2">
+                    ⚠️ SMS authentication may not be configured. Use demo accounts for testing.
+                  </div>
                 </div>
               </div>
               <Button 
                 onClick={handleSendOTP}
-                disabled={isLoading || getIndianPhoneNumber(phone).length !== 10}
+                disabled={isLoading || !isValidIndianMobile(phone)}
                 className="w-full bg-ts-primary hover:bg-ts-primary-dark"
               >
                 {isLoading ? "Sending OTP..." : "Send OTP"}
@@ -299,7 +371,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                   <p className="text-sm text-ts-text-secondary mt-2">Check your SMS for the OTP.</p>
                 )}
                 {specialUser && (
-                  <p className="text-sm text-ts-text-secondary mt-2">Demo: any 6-digit OTP will work.</p>
+                  <p className="text-sm text-blue-600 mt-2">Demo mode: any 6-digit OTP will work.</p>
                 )}
               </div>
               <div className="flex justify-center">
