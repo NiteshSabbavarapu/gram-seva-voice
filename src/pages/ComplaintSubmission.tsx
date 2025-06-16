@@ -11,7 +11,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoginModal from "@/components/LoginModal";
 import LocationDetector from "@/components/LocationDetector";
-import { ArrowUp, Home, CheckCircle, FileText, User, Phone } from "lucide-react";
+import { ArrowUp, Home, CheckCircle, FileText, User, Phone, X, ImageIcon } from "lucide-react";
 import { complaintsStore } from "@/lib/complaintsStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,7 +30,7 @@ const ComplaintSubmission = () => {
     areaType: "" as "Village" | "City" | "",
     category: "",
     description: "",
-    image: null as File | null
+    images: [] as File[]
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedComplaintId, setSubmittedComplaintId] = useState<string | null>(null);
@@ -59,6 +59,39 @@ const ComplaintSubmission = () => {
       // Only update location if detected
       location: location !== "" ? location : prev.location,
       areaType: areaType !== "" ? areaType : prev.areaType
+    }));
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (validFiles.length !== files.length) {
+      toast({
+        title: "Invalid Files",
+        description: "Only image files are allowed.",
+        variant: "destructive"
+      });
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      images: [...prev.images, ...validFiles].slice(0, 5) // Limit to 5 images
+    }));
+
+    if (formData.images.length + validFiles.length > 5) {
+      toast({
+        title: "Image Limit",
+        description: "You can upload a maximum of 5 images.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
     }));
   };
 
@@ -197,7 +230,7 @@ const ComplaintSubmission = () => {
           forwardedTo,
           category: formData.category,
           description: formData.description,
-          image: formData.image,
+          image: formData.images[0] || null, // Store first image for compatibility
           // assignedOfficerId and locationId not allowed, so REMOVE from argument
         });
 
@@ -238,10 +271,10 @@ const ComplaintSubmission = () => {
     setSubmittedComplaintId(null);
     setFormData({
       location: "",
-      areaType: "", // FIX: Add areaType so it matches the expected state shape
+      areaType: "",
       category: "",
       description: "",
-      image: null
+      images: []
     });
   };
 
@@ -256,8 +289,16 @@ const ComplaintSubmission = () => {
                 Login Required
               </h3>
               <p className="text-ts-text-secondary mb-6">
-                Please login to submit a complaint.
+                Please login to submit a complaint. Use demo accounts for testing:
               </p>
+              <div className="text-sm text-left bg-blue-50 p-4 rounded mb-6">
+                <p className="font-semibold text-blue-800 mb-2">Demo Accounts (No SMS required):</p>
+                <p>Supervisor: <strong>8000000001</strong></p>
+                <p>Admin: <strong>9000000001</strong></p>
+                <p className="text-xs text-amber-600 mt-2">
+                  ⚠️ SMS authentication is not configured. Use demo accounts for testing.
+                </p>
+              </div>
               <Button 
                 onClick={() => setShowLoginModal(true)}
                 className="bg-ts-primary hover:bg-ts-primary-dark"
@@ -477,16 +518,64 @@ const ComplaintSubmission = () => {
                 </div>
 
                 <div>
-                  <Label htmlFor="image" className="text-ts-text font-medium">
-                    Upload Image (Optional) / చిత్రం అప్‌లోడ్ చేయండి
+                  <Label htmlFor="images" className="text-ts-text font-medium">
+                    Upload Images (Optional, Max 5) / చిత్రాలు అప్‌లోడ్ చేయండి
                   </Label>
                   <Input
-                    id="image"
+                    id="images"
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setFormData({...formData, image: e.target.files?.[0] || null})}
+                    multiple
+                    onChange={handleImageUpload}
                     className="mt-2 rounded-lg border-gray-300 focus:border-ts-primary"
                   />
+                  
+                  {/* Image Preview */}
+                  {formData.images.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-sm text-gray-600 mb-2">Selected Images ({formData.images.length}/5):</p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {formData.images.map((image, index) => (
+                          <div key={index} className="relative group">
+                            <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-gray-200">
+                              <img
+                                src={URL.createObjectURL(image)}
+                                alt={`Preview ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 transition-colors"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                            <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                              {image.name.substring(0, 10)}...
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {/* Add more button if less than 5 images */}
+                        {formData.images.length < 5 && (
+                          <label className="aspect-square bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors">
+                            <div className="text-center">
+                              <ImageIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                              <p className="text-xs text-gray-500">Add Image</p>
+                            </div>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={handleImageUpload}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <Button 
