@@ -6,12 +6,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { SUPERVISOR_MOBILE, ADMIN_MOBILE, SUPERVISOR_NAME, ADMIN_NAME, SUPERVISOR_ROLE, ADMIN_ROLE, LOCATION_NAME } from "@/constants/authConstants";
 
+// Fixed OTP for all users
+const FIXED_OTP = "123456";
+
 export const useAuthLogin = () => {
   const { login } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [confirmation, setConfirmation] = useState<null | {session: any}>(null);
 
   // Track user roles
   const getSpecialUser = (phone: string) =>
@@ -54,91 +56,23 @@ export const useAuthLogin = () => {
   };
 
   const sendOTP = async (phone: string) => {
-    const specialUser = getSpecialUser(phone);
-    
-    // Special users demo bypass
-    if (specialUser) {
-      toast({
-        title: "Demo Login",
-        description: `Using demo login for ${specialUser.name}. Enter any 6-digit OTP.`,
-        className: "bg-blue-50 text-blue-800 border-blue-200"
-      });
-      return { success: true };
-    }
-
     setIsLoading(true);
-    console.log("Attempting to send OTP to:", "+91" + phone);
+    console.log("Sending fixed OTP for phone:", "+91" + phone);
     
-    try {
-      const { data, error } = await supabase.auth.signInWithOtp({
-        phone: "+91" + phone
-      });
-      
-      console.log("OTP send response:", { data, error });
-      
-      if (error) {
-        console.error("OTP send error:", error);
-        
-        if (error.message.includes("Unsupported phone provider")) {
-          toast({
-            title: "SMS Not Available",
-            description: "SMS authentication is not configured for this project. Please use demo accounts (8000000001 or 9000000001) for testing.",
-            variant: "destructive"
-          });
-        } else if (error.message.includes("SMS quota")) {
-          toast({
-            title: "SMS Quota Exceeded",
-            description: "SMS quota has been exceeded. Please try again later or contact support.",
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "OTP Send Failed",
-            description: error.message || "Failed to send OTP. Please try demo accounts instead.",
-            variant: "destructive"
-          });
-        }
-        setIsLoading(false);
-        return { success: false };
-      }
-      
-      setConfirmation(data || null);
-      toast({
-        title: "OTP Sent!",
-        description: `A verification code was sent to +91${phone}.`,
-        className: "bg-green-50 text-green-800 border-green-200"
-      });
-      setIsLoading(false);
-      return { success: true };
-    } catch (err) {
-      console.error("Unexpected error sending OTP:", err);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try demo accounts instead.",
-        variant: "destructive"
-      });
-      setIsLoading(false);
-      return { success: false };
-    }
+    // Simulate a brief delay for better UX
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    toast({
+      title: "OTP Sent!",
+      description: `A verification code was sent to +91${phone}. Use ${FIXED_OTP} to login.`,
+      className: "bg-green-50 text-green-800 border-green-200"
+    });
+    
+    setIsLoading(false);
+    return { success: true };
   };
 
   const verifyOTP = async (phone: string, otp: string) => {
-    const specialUser = getSpecialUser(phone);
-    
-    // For demo supervisors/admins, let any OTP work
-    if (specialUser) {
-      if (otp.length === 6) {
-        return { success: true, user: null };
-      } else {
-        toast({
-          title: "Invalid OTP",
-          description: "Please enter a 6-digit OTP.",
-          variant: "destructive"
-        });
-        return { success: false };
-      }
-    }
-    
     if (!otp || otp.length !== 6) {
       toast({
         title: "Invalid OTP",
@@ -148,41 +82,23 @@ export const useAuthLogin = () => {
       return { success: false };
     }
     
-    setIsLoading(true);
-    console.log("Verifying OTP for phone:", "+91" + phone);
-    
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: "+91" + phone,
-        token: otp,
-        type: "sms"
-      });
-      
-      console.log("OTP verify response:", { data, error });
-      
-      if (error) {
-        console.error("OTP verification error:", error);
-        toast({
-          title: "OTP Verification Failed",
-          description: error.message || "Invalid OTP. Please try again.",
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return { success: false };
-      }
-
-      setIsLoading(false);
-      return { success: true, user: data?.user };
-    } catch (err) {
-      console.error("Unexpected error verifying OTP:", err);
+    if (otp !== FIXED_OTP) {
       toast({
-        title: "Error",
-        description: "An unexpected error occurred during verification.",
+        title: "Invalid OTP",
+        description: `Please enter the correct OTP: ${FIXED_OTP}`,
         variant: "destructive"
       });
-      setIsLoading(false);
       return { success: false };
     }
+    
+    setIsLoading(true);
+    console.log("Verifying fixed OTP for phone:", "+91" + phone);
+    
+    // Simulate verification delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    setIsLoading(false);
+    return { success: true, user: null };
   };
 
   const completeLogin = async (phone: string, finalName?: string, closeModal = true, onClose?: () => void) => {
@@ -198,16 +114,11 @@ export const useAuthLogin = () => {
       return false;
     }
 
-    // Save name for new users (if not special user)
+    // Save user data to database for non-special users
     if (!specialUser) {
-      const userSession = await supabase.auth.getSession();
-      const currentUser = userSession.data.session?.user;
-      if (currentUser) {
-        await supabase.auth.updateUser({ data: { name: loginName }});
-        await supabase
-          .from("users")
-          .upsert([{ phone: currentUser.phone?.replace("+91", ""), name: loginName, role: "citizen" }], { onConflict: "phone" });
-      }
+      await supabase
+        .from("users")
+        .upsert([{ phone, name: loginName, role: "citizen" }], { onConflict: "phone" });
     }
     
     login(phone, loginName);

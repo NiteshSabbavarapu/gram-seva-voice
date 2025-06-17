@@ -32,7 +32,7 @@ const PhoneStep: React.FC<PhoneStepProps> = ({ phone, setPhone, onSendOTP, isLoa
         />
         <div className="text-xs text-gray-500 mt-1 space-y-1">
           <div>
-            <span className="font-medium text-blue-600">Demo Accounts (No SMS required):</span>
+            <span className="font-medium text-blue-600">Demo Accounts:</span>
           </div>
           <div>
             Supervisor: <b>{SUPERVISOR_MOBILE}</b>
@@ -40,8 +40,8 @@ const PhoneStep: React.FC<PhoneStepProps> = ({ phone, setPhone, onSendOTP, isLoa
           <div>
             Admin: <b>{ADMIN_MOBILE}</b>
           </div>
-          <div className="text-amber-600 text-xs mt-2">
-            ⚠️ SMS authentication may not be configured. Use demo accounts for testing.
+          <div className="text-green-600 text-xs mt-2">
+            ✅ For all numbers, use OTP: <b>123456</b>
           </div>
         </div>
       </div>

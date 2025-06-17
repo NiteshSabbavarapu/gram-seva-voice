@@ -26,12 +26,11 @@ const OTPStep: React.FC<OTPStepProps> = ({
       <div className="text-center">
         <p className="text-ts-text mb-2">Enter the OTP sent to</p>
         <p className="font-semibold text-ts-primary">+91{phone}</p>
-        {!isSpecialUser && (
-          <p className="text-sm text-ts-text-secondary mt-2">Check your SMS for the OTP.</p>
-        )}
-        {isSpecialUser && (
-          <p className="text-sm text-blue-600 mt-2">Demo mode: any 6-digit OTP will work.</p>
-        )}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
+          <p className="text-sm text-green-700 font-medium">
+            Fixed OTP for all users: <span className="font-bold text-lg">123456</span>
+          </p>
+        </div>
       </div>
       <div className="flex justify-center">
         <InputOTP value={otp} onChange={setOtp} maxLength={6}>
