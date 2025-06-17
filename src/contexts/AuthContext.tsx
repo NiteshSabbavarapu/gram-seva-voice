@@ -1,5 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   name: string;
@@ -36,6 +37,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     localStorage.removeItem('tsGramSevaUser');
+    // Navigate to home page after logout
+    window.location.href = '/';
   };
 
   const isAuthenticated = user?.isVerified || false;

@@ -4,7 +4,19 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { SUPERVISOR_MOBILE, ADMIN_MOBILE, SUPERVISOR_NAME, ADMIN_NAME, SUPERVISOR_ROLE, ADMIN_ROLE, LOCATION_NAME } from "@/constants/authConstants";
+import { 
+  SUPERVISOR_MOBILE, 
+  ADMIN_MOBILE, 
+  SUPERVISOR_NAME, 
+  ADMIN_NAME, 
+  SUPERVISOR_ROLE, 
+  ADMIN_ROLE, 
+  LOCATION_NAME,
+  COLLEGE_SUPERVISOR_MOBILE,
+  COLLEGE_SUPERVISOR_NAME,
+  COLLEGE_SUPERVISOR_ROLE,
+  COLLEGE_LOCATION_NAME
+} from "@/constants/authConstants";
 
 // Fixed OTP for all users
 const FIXED_OTP = "123456";
@@ -15,13 +27,19 @@ export const useAuthLogin = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Track user roles
-  const getSpecialUser = (phone: string) =>
-    phone === SUPERVISOR_MOBILE
-      ? { name: SUPERVISOR_NAME, role: SUPERVISOR_ROLE as "employee" | "admin" | "citizen" }
-      : phone === ADMIN_MOBILE
-      ? { name: ADMIN_NAME, role: ADMIN_ROLE as "employee" | "admin" | "citizen" }
-      : null;
+  // Track user roles including college supervisor
+  const getSpecialUser = (phone: string) => {
+    if (phone === SUPERVISOR_MOBILE) {
+      return { name: SUPERVISOR_NAME, role: SUPERVISOR_ROLE as "employee" | "admin" | "citizen" };
+    }
+    if (phone === COLLEGE_SUPERVISOR_MOBILE) {
+      return { name: COLLEGE_SUPERVISOR_NAME, role: COLLEGE_SUPERVISOR_ROLE as "employee" | "admin" | "citizen" };
+    }
+    if (phone === ADMIN_MOBILE) {
+      return { name: ADMIN_NAME, role: ADMIN_ROLE as "employee" | "admin" | "citizen" };
+    }
+    return null;
+  };
 
   const ensureSpecialUser = async (phone: string) => {
     const specialUser = getSpecialUser(phone);
@@ -33,7 +51,7 @@ export const useAuthLogin = () => {
       { onConflict: "phone" }
     );
     
-    // Supervisor assignment logic
+    // Handle location assignments for supervisors
     if (phone === SUPERVISOR_MOBILE) {
       let locRes = await supabase.from("locations").select("id").eq("name", LOCATION_NAME).maybeSingle();
       let locId = locRes?.data?.id;
@@ -53,6 +71,38 @@ export const useAuthLogin = () => {
           .upsert([{ user_id: userId, location_id: locId }], { onConflict: "user_id,location_id" });
       }
     }
+
+    // Handle college supervisor assignment
+    if (phone === COLLEGE_SUPERVISOR_MOBILE) {
+      let locRes = await supabase.from("locations").select("id").eq("name", COLLEGE_LOCATION_NAME).maybeSingle();
+      let locId = locRes?.data?.id;
+      if (!locId) {
+        const insertLoc = await supabase
+          .from("locations")
+          .insert([{ name: COLLEGE_LOCATION_NAME, type: "city" }])
+          .select("id")
+          .single();
+        locId = insertLoc.data?.id;
+      }
+      const userRes = await supabase.from("users").select("id").eq("phone", COLLEGE_SUPERVISOR_MOBILE).maybeSingle();
+      const userId = userRes?.data?.id;
+      if (userId && locId) {
+        await supabase
+          .from("employee_assignments")
+          .upsert([{ user_id: userId, location_id: locId }], { onConflict: "user_id,location_id" });
+      }
+    }
+  };
+
+  // Check if user exists in database and get their name
+  const getExistingUserName = async (phone: string) => {
+    const { data: user } = await supabase
+      .from("users")
+      .select("name")
+      .eq("phone", phone)
+      .maybeSingle();
+    
+    return user?.name || null;
   };
 
   const sendOTP = async (phone: string) => {
@@ -94,11 +144,14 @@ export const useAuthLogin = () => {
     setIsLoading(true);
     console.log("Verifying fixed OTP for phone:", "+91" + phone);
     
+    // Check if user exists and get their name
+    const existingName = await getExistingUserName(phone);
+    
     // Simulate verification delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
     setIsLoading(false);
-    return { success: true, user: null };
+    return { success: true, existingName };
   };
 
   const completeLogin = async (phone: string, finalName?: string, closeModal = true, onClose?: () => void) => {
@@ -133,7 +186,7 @@ export const useAuthLogin = () => {
     if (phone === ADMIN_MOBILE) {
       onClose?.();
       navigate("/admin-dashboard");
-    } else if (phone === SUPERVISOR_MOBILE) {
+    } else if (phone === SUPERVISOR_MOBILE || phone === COLLEGE_SUPERVISOR_MOBILE) {
       onClose?.();
       navigate("/official-login");
     } else {
@@ -149,6 +202,7 @@ export const useAuthLogin = () => {
     verifyOTP,
     completeLogin,
     ensureSpecialUser,
-    getSpecialUser
+    getSpecialUser,
+    getExistingUserName
   };
 };

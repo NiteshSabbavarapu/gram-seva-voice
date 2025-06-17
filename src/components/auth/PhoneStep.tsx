@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Phone } from "lucide-react";
 import { getIndianPhoneNumber, isValidIndianMobile } from "@/utils/phoneUtils";
-import { SUPERVISOR_MOBILE, ADMIN_MOBILE } from "@/constants/authConstants";
+import { SUPERVISOR_MOBILE, ADMIN_MOBILE, COLLEGE_SUPERVISOR_MOBILE } from "@/constants/authConstants";
 
 interface PhoneStepProps {
   phone: string;
@@ -35,7 +35,10 @@ const PhoneStep: React.FC<PhoneStepProps> = ({ phone, setPhone, onSendOTP, isLoa
             <span className="font-medium text-blue-600">Demo Accounts:</span>
           </div>
           <div>
-            Supervisor: <b>{SUPERVISOR_MOBILE}</b>
+            FD Supervisor: <b>{SUPERVISOR_MOBILE}</b>
+          </div>
+          <div>
+            College Supervisor: <b>{COLLEGE_SUPERVISOR_MOBILE}</b>
           </div>
           <div>
             Admin: <b>{ADMIN_MOBILE}</b>

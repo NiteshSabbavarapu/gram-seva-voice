@@ -26,7 +26,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
     verifyOTP, 
     completeLogin, 
     ensureSpecialUser, 
-    getSpecialUser 
+    getSpecialUser,
+    getExistingUserName
   } = useAuthLogin();
 
   const specialUser = getSpecialUser(phone);
@@ -59,13 +60,18 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
   const handleVerifyOTP = async () => {
     const result = await verifyOTP(phone, otp);
     if (result.success) {
-      if (result.user?.user_metadata?.name || specialUser) {
-        await completeLogin(phone, result.user?.user_metadata?.name, true, onClose);
+      // Check if it's a special user or if we have existing name
+      if (specialUser) {
+        await completeLogin(phone, specialUser.name, true, onClose);
+      } else if (result.existingName) {
+        // User exists, login directly with existing name
+        await completeLogin(phone, result.existingName, true, onClose);
       } else {
+        // New user, ask for name
         setStep('name');
         toast({
           title: "OTP Verified!",
-          description: "Phone number verified successfully.",
+          description: "Phone number verified successfully. Please enter your name.",
           className: "bg-green-50 text-green-800 border-green-200"
         });
       }
