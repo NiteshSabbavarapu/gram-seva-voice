@@ -16,10 +16,6 @@ import { complaintsStore } from "@/lib/complaintsStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
-const SUPERVISOR_MOBILE = "8000000001";
-const SUPERVISOR_NAME = "FD Supervisor";
-const LOCATION_NAME = "Financial District, Gandipet mandal, Telangana";
-
 const ComplaintSubmission = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -56,7 +52,6 @@ const ComplaintSubmission = () => {
   const handleLocationDetected = (location: string, areaType: "Village" | "City" | "") => {
     setFormData((prev) => ({
       ...prev,
-      // Only update location if detected
       location: location !== "" ? location : prev.location,
       areaType: areaType !== "" ? areaType : prev.areaType
     }));
@@ -76,7 +71,7 @@ const ComplaintSubmission = () => {
 
     setFormData(prev => ({
       ...prev,
-      images: [...prev.images, ...validFiles].slice(0, 5) // Limit to 5 images
+      images: [...prev.images, ...validFiles].slice(0, 5)
     }));
 
     if (formData.images.length + validFiles.length > 5) {
@@ -97,13 +92,11 @@ const ComplaintSubmission = () => {
 
   const getForwardedTo = () => {
     if (formData.areaType === "Village") {
-      // Extract village name from location string if possible
       const villageMatch = formData.location.match(/([^,]+)/);
       const village = villageMatch ? villageMatch[1].trim() : formData.location;
       return `Gram Panchayat – ${village}`;
     }
     if (formData.areaType === "City") {
-      // Try to extract city name
       const cityMatch = formData.location.match(/([^,]+)/);
       const city = cityMatch ? cityMatch[1].trim() : formData.location;
       return `${city} Municipality Office`;
@@ -115,8 +108,7 @@ const ComplaintSubmission = () => {
     const fetchContacts = async () => {
       setLocationContacts([]);
       if (!formData.location || !formData.areaType) return;
-      // Find location row by name/type match
-      // For cities/villages, allow partial match for flexibility.
+      
       const { data: locs } = await supabase
         .from("locations")
         .select("id")
@@ -140,26 +132,31 @@ const ComplaintSubmission = () => {
       setAssignedOfficer(null);
       if (!formData.location || !formData.areaType) return;
 
-      // If this is our special location, directly set supervisor info without DB fetch
-      if (
-        formData.location.trim().toLowerCase() === LOCATION_NAME.toLowerCase()
-      ) {
-        setAssignedOfficer({ name: SUPERVISOR_NAME, phone: SUPERVISOR_MOBILE });
-        return;
-      }
-      // ... keep default DB fetch logic for other locations ...
+      // Check for exact location matches
       const { data: locs } = await supabase
         .from("locations")
-        .select("id")
-        .ilike("name", formData.location)
-        .limit(1);
-      const locId = locs?.[0]?.id;
-      if (locId) {
+        .select("id, name")
+        .ilike("name", `%${formData.location}%`)
+        .limit(10);
+
+      let matchedLocationId = null;
+      
+      // Try to find exact match or close match
+      if (locs && locs.length > 0) {
+        const exactMatch = locs.find(loc => 
+          loc.name.toLowerCase().includes(formData.location.toLowerCase()) ||
+          formData.location.toLowerCase().includes(loc.name.toLowerCase())
+        );
+        matchedLocationId = exactMatch?.id;
+      }
+
+      if (matchedLocationId) {
         const { data: assignments } = await supabase
           .from("employee_assignments")
           .select("user_id")
-          .eq("location_id", locId)
+          .eq("location_id", matchedLocationId)
           .limit(1);
+          
         const userId = assignments?.[0]?.user_id;
         if (userId) {
           const { data: userRow } = await supabase
@@ -174,7 +171,7 @@ const ComplaintSubmission = () => {
       }
     };
     fetchAssignedOfficer();
-  }, [formData.location, formData.areaType, submittedComplaintId]); // Run when relevant
+  }, [formData.location, formData.areaType, submittedComplaintId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,17 +192,25 @@ const ComplaintSubmission = () => {
 
     setIsSubmitting(true);
     
-    // Find the location id first
+    // Find the location id and assigned officer
     let assignedOfficerId: string | undefined;
     let locId: string | undefined;
+    
     const { data: locs } = await supabase
       .from("locations")
-      .select("id")
-      .ilike("name", formData.location)
-      .limit(1);
-    locId = locs?.[0]?.id;
+      .select("id, name")
+      .ilike("name", `%${formData.location}%`)
+      .limit(10);
 
-    // Find assigned officer for that location (optional: head/supervisor)
+    if (locs && locs.length > 0) {
+      const exactMatch = locs.find(loc => 
+        loc.name.toLowerCase().includes(formData.location.toLowerCase()) ||
+        formData.location.toLowerCase().includes(loc.name.toLowerCase())
+      );
+      locId = exactMatch?.id;
+    }
+
+    // Find assigned officer for that location
     if (locId) {
       const { data: assignment } = await supabase
         .from("employee_assignments")
@@ -215,13 +220,10 @@ const ComplaintSubmission = () => {
       assignedOfficerId = assignment?.[0]?.user_id;
     }
 
-    // Compute Forwarded To (original implementation kept for user display)
     const forwardedTo = getForwardedTo();
 
     setTimeout(() => {
-      // Async logic for fetch in setTimeout must use an IIFE
       (async () => {
-        // Insert complaint into complaintsStore (simulating DB insert)
         const complaintId = complaintsStore.addComplaint({
           name: user.name,
           phone: user.phone,
@@ -230,20 +232,14 @@ const ComplaintSubmission = () => {
           forwardedTo,
           category: formData.category,
           description: formData.description,
-          image: formData.images[0] || null, // Store first image for compatibility
-          // assignedOfficerId and locationId not allowed, so REMOVE from argument
+          image: formData.images[0] || null,
         });
 
         setIsSubmitting(false);
         setSubmittedComplaintId(complaintId);
 
-        // Always show supervisor for our location, otherwise use normal logic
-        if (
-          formData.location.trim().toLowerCase() === LOCATION_NAME.toLowerCase()
-        ) {
-          setAssignedOfficer({ name: SUPERVISOR_NAME, phone: SUPERVISOR_MOBILE });
-        } else if (assignedOfficerId) {
-          // Fetch the officer information for confirmation UI
+        // Set assigned officer if found
+        if (assignedOfficerId) {
           const { data: userRow } = await supabase
             .from("users")
             .select("name, phone")
@@ -293,7 +289,8 @@ const ComplaintSubmission = () => {
               </p>
               <div className="text-sm text-left bg-blue-50 p-4 rounded mb-6">
                 <p className="font-semibold text-blue-800 mb-2">Demo Accounts (No SMS required):</p>
-                <p>Supervisor: <strong>8000000001</strong></p>
+                <p>FD Supervisor: <strong>8000000001</strong></p>
+                <p>College Supervisor: <strong>8000000002</strong></p>
                 <p>Admin: <strong>9000000001</strong></p>
                 <p className="text-xs text-amber-600 mt-2">
                   ⚠️ SMS authentication is not configured. Use demo accounts for testing.
@@ -341,7 +338,6 @@ const ComplaintSubmission = () => {
                   </p>
                   <div className="mt-4">
                     <h3 className="font-semibold text-ts-text mb-1">📍 Forwarded To (Officer-in-charge):</h3>
-                    {/* Prefer officer info, fallback to "forwardedTo" */}
                     {assignedOfficer ? (
                       <div className="mb-2">
                         <span className="font-semibold">{assignedOfficer.name}</span>
@@ -351,7 +347,6 @@ const ComplaintSubmission = () => {
                     ) : (
                       <div className="mb-2">{getForwardedTo()}</div>
                     )}
-                    {/* Also show contacts for the location as before */}
                     {locationContacts.length > 0 && (
                       <div className="bg-blue-50 rounded p-4 mt-2 text-left">
                         <h4 className="font-medium text-blue-700 mb-1">📞 Key Contacts</h4>
@@ -464,7 +459,6 @@ const ComplaintSubmission = () => {
                   </div>
                 </div>
 
-                {/* NEW: Area Type Field */}
                 <div>
                   <Label htmlFor="areaType" className="text-ts-text font-medium">
                     Area Type / ప్రాంత రకం
@@ -557,7 +551,6 @@ const ComplaintSubmission = () => {
                           </div>
                         ))}
                         
-                        {/* Add more button if less than 5 images */}
                         {formData.images.length < 5 && (
                           <label className="aspect-square bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors">
                             <div className="text-center">
