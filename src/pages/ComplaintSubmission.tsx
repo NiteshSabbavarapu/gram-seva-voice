@@ -15,6 +15,7 @@ import { ArrowUp, Home, CheckCircle, FileText, User, Phone, X, ImageIcon } from 
 import { complaintsStore } from "@/lib/complaintsStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { COLLEGE_LOCATION_NAME, LOCATION_NAME } from "@/constants/authConstants";
 
 const ComplaintSubmission = () => {
   const { toast } = useToast();
@@ -132,31 +133,68 @@ const ComplaintSubmission = () => {
       setAssignedOfficer(null);
       if (!formData.location || !formData.areaType) return;
 
-      // Check for exact location matches
-      const { data: locs } = await supabase
-        .from("locations")
-        .select("id, name")
-        .ilike("name", `%${formData.location}%`)
-        .limit(10);
+      console.log("Looking for officer for location:", formData.location);
 
+      // Check for specific college location first
       let matchedLocationId = null;
       
-      // Try to find exact match or close match
-      if (locs && locs.length > 0) {
-        const exactMatch = locs.find(loc => 
-          loc.name.toLowerCase().includes(formData.location.toLowerCase()) ||
-          formData.location.toLowerCase().includes(loc.name.toLowerCase())
-        );
-        matchedLocationId = exactMatch?.id;
+      if (formData.location.toLowerCase().includes("cbit") || 
+          formData.location.toLowerCase().includes("college")) {
+        console.log("College location detected, looking for college supervisor");
+        
+        const { data: collegeLocs } = await supabase
+          .from("locations")
+          .select("id, name")
+          .eq("name", COLLEGE_LOCATION_NAME)
+          .limit(1);
+          
+        if (collegeLocs && collegeLocs.length > 0) {
+          matchedLocationId = collegeLocs[0].id;
+          console.log("Found college location:", collegeLocs[0]);
+        }
+      } else if (formData.location.toLowerCase().includes("financial") || 
+                 formData.location.toLowerCase().includes("district")) {
+        console.log("FD location detected, looking for FD supervisor");
+        
+        const { data: fdLocs } = await supabase
+          .from("locations")
+          .select("id, name")
+          .eq("name", LOCATION_NAME)
+          .limit(1);
+          
+        if (fdLocs && fdLocs.length > 0) {
+          matchedLocationId = fdLocs[0].id;
+          console.log("Found FD location:", fdLocs[0]);
+        }
+      } else {
+        // Generic location search
+        const { data: locs } = await supabase
+          .from("locations")
+          .select("id, name")
+          .ilike("name", `%${formData.location}%`)
+          .limit(10);
+
+        if (locs && locs.length > 0) {
+          const exactMatch = locs.find(loc => 
+            loc.name.toLowerCase().includes(formData.location.toLowerCase()) ||
+            formData.location.toLowerCase().includes(loc.name.toLowerCase())
+          );
+          matchedLocationId = exactMatch?.id;
+          console.log("Found generic location match:", exactMatch);
+        }
       }
 
       if (matchedLocationId) {
+        console.log("Looking for assigned officer for location ID:", matchedLocationId);
+        
         const { data: assignments } = await supabase
           .from("employee_assignments")
           .select("user_id")
           .eq("location_id", matchedLocationId)
           .limit(1);
           
+        console.log("Found assignments:", assignments);
+        
         const userId = assignments?.[0]?.user_id;
         if (userId) {
           const { data: userRow } = await supabase
@@ -164,6 +202,9 @@ const ComplaintSubmission = () => {
             .select("name, phone")
             .eq("id", userId)
             .maybeSingle();
+            
+          console.log("Found officer:", userRow);
+          
           if (userRow) {
             setAssignedOfficer({ name: userRow.name || "Officer", phone: userRow.phone || "N/A" });
           }
@@ -196,18 +237,48 @@ const ComplaintSubmission = () => {
     let assignedOfficerId: string | undefined;
     let locId: string | undefined;
     
-    const { data: locs } = await supabase
-      .from("locations")
-      .select("id, name")
-      .ilike("name", `%${formData.location}%`)
-      .limit(10);
+    // Check for specific college location first
+    if (formData.location.toLowerCase().includes("cbit") || 
+        formData.location.toLowerCase().includes("college")) {
+      console.log("Submitting complaint for college location");
+      
+      const { data: collegeLocs } = await supabase
+        .from("locations")
+        .select("id, name")
+        .eq("name", COLLEGE_LOCATION_NAME)
+        .limit(1);
+        
+      if (collegeLocs && collegeLocs.length > 0) {
+        locId = collegeLocs[0].id;
+      }
+    } else if (formData.location.toLowerCase().includes("financial") || 
+               formData.location.toLowerCase().includes("district")) {
+      console.log("Submitting complaint for FD location");
+      
+      const { data: fdLocs } = await supabase
+        .from("locations")
+        .select("id, name")
+        .eq("name", LOCATION_NAME)
+        .limit(1);
+        
+      if (fdLocs && fdLocs.length > 0) {
+        locId = fdLocs[0].id;
+      }
+    } else {
+      // Generic location search
+      const { data: locs } = await supabase
+        .from("locations")
+        .select("id, name")
+        .ilike("name", `%${formData.location}%`)
+        .limit(10);
 
-    if (locs && locs.length > 0) {
-      const exactMatch = locs.find(loc => 
-        loc.name.toLowerCase().includes(formData.location.toLowerCase()) ||
-        formData.location.toLowerCase().includes(loc.name.toLowerCase())
-      );
-      locId = exactMatch?.id;
+      if (locs && locs.length > 0) {
+        const exactMatch = locs.find(loc => 
+          loc.name.toLowerCase().includes(formData.location.toLowerCase()) ||
+          formData.location.toLowerCase().includes(loc.name.toLowerCase())
+        );
+        locId = exactMatch?.id;
+      }
     }
 
     // Find assigned officer for that location
@@ -218,6 +289,7 @@ const ComplaintSubmission = () => {
         .eq("location_id", locId)
         .limit(1);
       assignedOfficerId = assignment?.[0]?.user_id;
+      console.log("Found assigned officer ID:", assignedOfficerId);
     }
 
     const forwardedTo = getForwardedTo();

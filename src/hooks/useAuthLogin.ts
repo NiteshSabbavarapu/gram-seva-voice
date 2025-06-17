@@ -96,11 +96,17 @@ export const useAuthLogin = () => {
 
   // Check if user exists in database and get their name
   const getExistingUserName = async (phone: string) => {
-    const { data: user } = await supabase
+    console.log("Checking existing user for phone:", phone);
+    const { data: user, error } = await supabase
       .from("users")
       .select("name")
       .eq("phone", phone)
       .maybeSingle();
+    
+    console.log("Found existing user:", user);
+    if (error) {
+      console.log("Error fetching user:", error);
+    }
     
     return user?.name || null;
   };
@@ -144,8 +150,9 @@ export const useAuthLogin = () => {
     setIsLoading(true);
     console.log("Verifying fixed OTP for phone:", "+91" + phone);
     
-    // Check if user exists and get their name
+    // Check if user exists and get their name AFTER OTP verification
     const existingName = await getExistingUserName(phone);
+    console.log("Existing name found:", existingName);
     
     // Simulate verification delay
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -169,6 +176,7 @@ export const useAuthLogin = () => {
 
     // Save user data to database for non-special users
     if (!specialUser) {
+      console.log("Saving user to database:", { phone, name: loginName });
       await supabase
         .from("users")
         .upsert([{ phone, name: loginName, role: "citizen" }], { onConflict: "phone" });

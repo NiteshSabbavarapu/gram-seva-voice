@@ -60,14 +60,19 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
   const handleVerifyOTP = async () => {
     const result = await verifyOTP(phone, otp);
     if (result.success) {
+      console.log("OTP verified, checking for existing user...");
+      
       // Check if it's a special user or if we have existing name
       if (specialUser) {
+        console.log("Special user detected, logging in directly");
         await completeLogin(phone, specialUser.name, true, onClose);
       } else if (result.existingName) {
         // User exists, login directly with existing name
+        console.log("Existing user found with name:", result.existingName);
         await completeLogin(phone, result.existingName, true, onClose);
       } else {
         // New user, ask for name
+        console.log("New user, asking for name");
         setStep('name');
         toast({
           title: "OTP Verified!",
