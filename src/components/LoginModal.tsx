@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Phone, Shield, User } from "lucide-react";
@@ -66,19 +65,23 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
       if (specialUser) {
         console.log("Special user detected, logging in directly");
         await completeLogin(phone, specialUser.name, true, onClose);
-      } else if (result.existingName) {
-        // User exists, login directly with existing name
-        console.log("Existing user found with name:", result.existingName);
-        await completeLogin(phone, result.existingName, true, onClose);
       } else {
-        // New user, ask for name
-        console.log("New user, asking for name");
-        setStep('name');
-        toast({
-          title: "OTP Verified!",
-          description: "Phone number verified successfully. Please enter your name.",
-          className: "bg-green-50 text-green-800 border-green-200"
-        });
+        // For regular users, check if they exist in database
+        const existingName = result.existingName;
+        if (existingName) {
+          // User exists, login directly with existing name
+          console.log("Existing regular user found with name:", existingName);
+          await completeLogin(phone, existingName, true, onClose);
+        } else {
+          // New user, ask for name
+          console.log("New user, asking for name");
+          setStep('name');
+          toast({
+            title: "OTP Verified!",
+            description: "Phone number verified successfully. Please enter your name.",
+            className: "bg-green-50 text-green-800 border-green-200"
+          });
+        }
       }
     }
   };

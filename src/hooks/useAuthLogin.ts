@@ -46,6 +46,8 @@ export const useAuthLogin = () => {
     if (!specialUser) return;
     
     const { name, role } = specialUser;
+    console.log("Ensuring special user exists:", { phone, name, role });
+    
     await supabase.from("users").upsert(
       [{ name, phone, role }], 
       { onConflict: "phone" }
@@ -106,6 +108,7 @@ export const useAuthLogin = () => {
     console.log("Found existing user:", user);
     if (error) {
       console.log("Error fetching user:", error);
+      return null;
     }
     
     return user?.name || null;
@@ -152,7 +155,7 @@ export const useAuthLogin = () => {
     
     // Check if user exists and get their name AFTER OTP verification
     const existingName = await getExistingUserName(phone);
-    console.log("Existing name found:", existingName);
+    console.log("Existing name found after OTP verification:", existingName);
     
     // Simulate verification delay
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -174,13 +177,29 @@ export const useAuthLogin = () => {
       return false;
     }
 
-    // Save user data to database for non-special users
-    if (!specialUser) {
-      console.log("Saving user to database:", { phone, name: loginName });
-      await supabase
-        .from("users")
-        .upsert([{ phone, name: loginName, role: "citizen" }], { onConflict: "phone" });
+    // Save user data to database for ALL users (including special users for consistency)
+    console.log("Saving user to database:", { phone, name: loginName });
+    const { error } = await supabase
+      .from("users")
+      .upsert([{ 
+        phone, 
+        name: loginName, 
+        role: specialUser?.role || "citizen" 
+      }], { 
+        onConflict: "phone" 
+      });
+    
+    if (error) {
+      console.error("Error saving user:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save user information. Please try again.",
+        variant: "destructive"
+      });
+      return false;
     }
+    
+    console.log("User successfully saved/updated in database");
     
     login(phone, loginName);
 
