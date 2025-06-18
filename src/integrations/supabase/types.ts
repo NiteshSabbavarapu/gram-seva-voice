@@ -9,6 +9,55 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      complaint_assignments: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          assigned_to: string | null
+          complaint_id: string | null
+          id: string
+          status: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_to?: string | null
+          complaint_id?: string | null
+          id?: string
+          status?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_to?: string | null
+          complaint_id?: string | null
+          id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "complaint_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "complaint_assignments_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "complaint_assignments_complaint_id_fkey"
+            columns: ["complaint_id"]
+            isOneToOne: false
+            referencedRelation: "complaints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       complaint_comments: {
         Row: {
           comment: string
@@ -95,32 +144,47 @@ export type Database = {
       }
       complaints: {
         Row: {
+          area_type: string | null
           assigned_officer_id: string | null
           category: string | null
           citizen_id: string | null
           description: string
+          forwarded_to: string | null
           id: string
           location_id: string | null
+          location_name: string | null
+          name: string | null
+          phone: string | null
           status: Database["public"]["Enums"]["complaint_status"]
           submitted_at: string | null
         }
         Insert: {
+          area_type?: string | null
           assigned_officer_id?: string | null
           category?: string | null
           citizen_id?: string | null
           description: string
+          forwarded_to?: string | null
           id?: string
           location_id?: string | null
+          location_name?: string | null
+          name?: string | null
+          phone?: string | null
           status?: Database["public"]["Enums"]["complaint_status"]
           submitted_at?: string | null
         }
         Update: {
+          area_type?: string | null
           assigned_officer_id?: string | null
           category?: string | null
           citizen_id?: string | null
           description?: string
+          forwarded_to?: string | null
           id?: string
           location_id?: string | null
+          location_name?: string | null
+          name?: string | null
+          phone?: string | null
           status?: Database["public"]["Enums"]["complaint_status"]
           submitted_at?: string | null
         }

@@ -233,102 +233,154 @@ const ComplaintSubmission = () => {
 
     setIsSubmitting(true);
     
-    // Find the location id and assigned officer
-    let assignedOfficerId: string | undefined;
-    let locId: string | undefined;
-    
-    // Check for specific college location first
-    if (formData.location.toLowerCase().includes("cbit") || 
-        formData.location.toLowerCase().includes("college")) {
-      console.log("Submitting complaint for college location");
+    try {
+      // Find the location id and assigned officer
+      let assignedOfficerId: string | undefined;
+      let locId: string | undefined;
       
-      const { data: collegeLocs } = await supabase
-        .from("locations")
-        .select("id, name")
-        .eq("name", COLLEGE_LOCATION_NAME)
-        .limit(1);
+      // Check for specific college location first
+      if (formData.location.toLowerCase().includes("cbit") || 
+          formData.location.toLowerCase().includes("college")) {
+        console.log("Submitting complaint for college location");
         
-      if (collegeLocs && collegeLocs.length > 0) {
-        locId = collegeLocs[0].id;
-      }
-    } else if (formData.location.toLowerCase().includes("financial") || 
-               formData.location.toLowerCase().includes("district")) {
-      console.log("Submitting complaint for FD location");
-      
-      const { data: fdLocs } = await supabase
-        .from("locations")
-        .select("id, name")
-        .eq("name", LOCATION_NAME)
-        .limit(1);
-        
-      if (fdLocs && fdLocs.length > 0) {
-        locId = fdLocs[0].id;
-      }
-    } else {
-      // Generic location search
-      const { data: locs } = await supabase
-        .from("locations")
-        .select("id, name")
-        .ilike("name", `%${formData.location}%`)
-        .limit(10);
-
-      if (locs && locs.length > 0) {
-        const exactMatch = locs.find(loc => 
-          loc.name.toLowerCase().includes(formData.location.toLowerCase()) ||
-          formData.location.toLowerCase().includes(loc.name.toLowerCase())
-        );
-        locId = exactMatch?.id;
-      }
-    }
-
-    // Find assigned officer for that location
-    if (locId) {
-      const { data: assignment } = await supabase
-        .from("employee_assignments")
-        .select("user_id")
-        .eq("location_id", locId)
-        .limit(1);
-      assignedOfficerId = assignment?.[0]?.user_id;
-      console.log("Found assigned officer ID:", assignedOfficerId);
-    }
-
-    const forwardedTo = getForwardedTo();
-
-    setTimeout(() => {
-      (async () => {
-        const complaintId = complaintsStore.addComplaint({
-          name: user.name,
-          phone: user.phone,
-          location: formData.location,
-          areaType: formData.areaType,
-          forwardedTo,
-          category: formData.category,
-          description: formData.description,
-          image: formData.images[0] || null,
-        });
-
-        setIsSubmitting(false);
-        setSubmittedComplaintId(complaintId);
-
-        // Set assigned officer if found
-        if (assignedOfficerId) {
-          const { data: userRow } = await supabase
-            .from("users")
-            .select("name, phone")
-            .eq("id", assignedOfficerId)
-            .maybeSingle();
-          if (userRow) {
-            setAssignedOfficer({ name: userRow.name || "Officer", phone: userRow.phone || "N/A" });
-          }
+        const { data: collegeLocs } = await supabase
+          .from("locations")
+          .select("id, name")
+          .eq("name", COLLEGE_LOCATION_NAME)
+          .limit(1);
+          
+        if (collegeLocs && collegeLocs.length > 0) {
+          locId = collegeLocs[0].id;
         }
+      } else if (formData.location.toLowerCase().includes("financial") || 
+                 formData.location.toLowerCase().includes("district")) {
+        console.log("Submitting complaint for FD location");
+        
+        const { data: fdLocs } = await supabase
+          .from("locations")
+          .select("id, name")
+          .eq("name", LOCATION_NAME)
+          .limit(1);
+          
+        if (fdLocs && fdLocs.length > 0) {
+          locId = fdLocs[0].id;
+        }
+      } else {
+        // Generic location search
+        const { data: locs } = await supabase
+          .from("locations")
+          .select("id, name")
+          .ilike("name", `%${formData.location}%`)
+          .limit(10);
 
-        toast({
-          title: "Complaint Submitted Successfully!",
-          description: `Your complaint ID is: ${complaintId}. ✅ Complaint forwarded to: ${forwardedTo}`,
-          className: "bg-ts-success text-black"
-        });
-      })();
-    }, 2000);
+        if (locs && locs.length > 0) {
+          const exactMatch = locs.find(loc => 
+            loc.name.toLowerCase().includes(formData.location.toLowerCase()) ||
+            formData.location.toLowerCase().includes(loc.name.toLowerCase())
+          );
+          locId = exactMatch?.id;
+        }
+      }
+
+      // Find assigned officer for that location
+      if (locId) {
+        const { data: assignment } = await supabase
+          .from("employee_assignments")
+          .select("user_id")
+          .eq("location_id", locId)
+          .limit(1);
+        assignedOfficerId = assignment?.[0]?.user_id;
+        console.log("Found assigned officer ID:", assignedOfficerId);
+      }
+
+      const forwardedTo = getForwardedTo();
+
+      // Save complaint to Supabase database
+      const { data: complaint, error: complaintError } = await supabase
+        .from("complaints")
+        .insert([
+          {
+            name: user.name,
+            phone: user.phone,
+            location_name: formData.location,
+            area_type: formData.areaType,
+            forwarded_to: forwardedTo,
+            category: formData.category,
+            description: formData.description,
+            location_id: locId,
+            assigned_officer_id: assignedOfficerId,
+            status: 'submitted'
+          }
+        ])
+        .select()
+        .single();
+
+      if (complaintError) {
+        console.error("Error saving complaint:", complaintError);
+        throw complaintError;
+      }
+
+      console.log("Complaint saved successfully:", complaint);
+
+      // If there's an assigned officer, create an assignment record
+      if (assignedOfficerId && complaint.id) {
+        const { error: assignmentError } = await supabase
+          .from("complaint_assignments")
+          .insert([
+            {
+              complaint_id: complaint.id,
+              assigned_to: assignedOfficerId,
+              status: 'assigned'
+            }
+          ]);
+
+        if (assignmentError) {
+          console.error("Error creating assignment:", assignmentError);
+        }
+      }
+
+      // Also save to local store for backward compatibility
+      const localComplaintId = complaintsStore.addComplaint({
+        name: user.name,
+        phone: user.phone,
+        location: formData.location,
+        areaType: formData.areaType,
+        forwardedTo,
+        category: formData.category,
+        description: formData.description,
+        image: formData.images[0] || null,
+      });
+
+      setSubmittedComplaintId(complaint.id || localComplaintId);
+
+      // Set assigned officer if found
+      if (assignedOfficerId) {
+        const { data: userRow } = await supabase
+          .from("users")
+          .select("name, phone")
+          .eq("id", assignedOfficerId)
+          .maybeSingle();
+        if (userRow) {
+          setAssignedOfficer({ name: userRow.name || "Officer", phone: userRow.phone || "N/A" });
+        }
+      }
+
+      toast({
+        title: "Complaint Submitted Successfully!",
+        description: `Your complaint has been forwarded to: ${forwardedTo}`,
+        className: "bg-ts-success text-black"
+      });
+
+    } catch (error) {
+      console.error("Error submitting complaint:", error);
+      toast({
+        title: "Submission Failed",
+        description: "There was an error submitting your complaint. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleViewMyComplaints = () => {
