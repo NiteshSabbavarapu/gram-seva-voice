@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Home, Check, User, MapPin, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { Home, Check, User, MapPin, Clock, CheckCircle, AlertCircle, Play, Pause, Volume2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import LocationContactsManager from "@/components/admin/LocationContactsManager";
 import type { Database } from "@/integrations/supabase/types";
@@ -38,6 +38,8 @@ interface Complaint {
   status: ComplaintStatus;
   submitted_at: string;
   assigned_officer_id: string;
+  voice_message: string | null;
+  voice_duration: number | null;
 }
 
 const AdminDashboard = () => {
@@ -46,6 +48,7 @@ const AdminDashboard = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [selectedSupervisor, setSelectedSupervisor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [playingAudio, setPlayingAudio] = useState<string | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -163,6 +166,71 @@ const AdminDashboard = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const playVoiceMessage = (complaintId: string, voiceMessage: string) => {
+    try {
+      // Stop any currently playing audio
+      if (playingAudio) {
+        const currentAudio = document.getElementById(`audio-${playingAudio}`) as HTMLAudioElement;
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+        }
+      }
+
+      // If clicking on the same audio that's playing, stop it
+      if (playingAudio === complaintId) {
+        setPlayingAudio(null);
+        return;
+      }
+
+      // Create audio blob from base64
+      const audioBlob = new Blob([
+        new Uint8Array(
+          atob(voiceMessage)
+            .split('')
+            .map(char => char.charCodeAt(0))
+        )
+      ], { type: 'audio/webm' });
+
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audio.id = `audio-${complaintId}`;
+
+      audio.addEventListener('ended', () => {
+        setPlayingAudio(null);
+        URL.revokeObjectURL(audioUrl);
+      });
+
+      audio.addEventListener('error', () => {
+        toast({
+          title: "Audio Error",
+          description: "Could not play voice message.",
+          variant: "destructive"
+        });
+        setPlayingAudio(null);
+        URL.revokeObjectURL(audioUrl);
+      });
+
+      audio.play();
+      setPlayingAudio(complaintId);
+
+    } catch (error) {
+      console.error("Error playing voice message:", error);
+      toast({
+        title: "Audio Error",
+        description: "Could not play voice message.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const filteredComplaints = selectedSupervisor 
@@ -348,6 +416,12 @@ const AdminDashboard = () => {
                       <Badge className={getStatusColor(complaint.status)}>
                         {complaint.status.replace('_', ' ').toUpperCase()}
                       </Badge>
+                      {complaint.voice_message && (
+                        <Badge className="bg-purple-100 text-purple-800 flex items-center gap-1">
+                          <Volume2 className="h-3 w-3" />
+                          Voice
+                        </Badge>
+                      )}
                     </div>
                     
                     <div className="space-y-1 text-sm text-ts-text-secondary">
@@ -355,6 +429,37 @@ const AdminDashboard = () => {
                       <p><strong>Phone:</strong> {complaint.phone}</p>
                       <p><strong>Location:</strong> {complaint.location_name || "Not specified"}</p>
                       <p><strong>Category:</strong> {complaint.category}</p>
+                      
+                      {/* Voice Message Section */}
+                      {complaint.voice_message && (
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mt-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-purple-800 font-medium flex items-center gap-2">
+                              <Volume2 className="h-4 w-4" />
+                              Voice Message ({formatDuration(complaint.voice_duration)})
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => playVoiceMessage(complaint.id, complaint.voice_message!)}
+                              className="bg-purple-500 hover:bg-purple-600 text-white"
+                            >
+                              {playingAudio === complaint.id ? (
+                                <>
+                                  <Pause className="h-3 w-3 mr-1" />
+                                  Stop
+                                </>
+                              ) : (
+                                <>
+                                  <Play className="h-3 w-3 mr-1" />
+                                  Play
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      
                       <p><strong>Description:</strong> {complaint.description}</p>
                       <p><strong>Submitted:</strong> {new Date(complaint.submitted_at).toLocaleDateString()}</p>
                       {complaint.assigned_officer_id && (

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoginModal from "@/components/LoginModal";
 import LocationDetector from "@/components/LocationDetector";
-import { ArrowUp, Home, CheckCircle, FileText, User, Phone, X, ImageIcon } from "lucide-react";
+import VoiceRecorder from "@/components/VoiceRecorder";
+import { ArrowUp, Home, CheckCircle, FileText, User, Phone, X, ImageIcon, Mic } from "lucide-react";
 import { complaintsStore } from "@/lib/complaintsStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +29,13 @@ const ComplaintSubmission = () => {
     category: "",
     description: "",
     images: [] as File[]
+  });
+  const [voiceData, setVoiceData] = useState<{
+    audioBlob: Blob | null;
+    duration: number;
+  }>({
+    audioBlob: null,
+    duration: 0
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedComplaintId, setSubmittedComplaintId] = useState<string | null>(null);
@@ -89,6 +96,34 @@ const ComplaintSubmission = () => {
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
+  };
+
+  const handleVoiceRecordingComplete = (audioBlob: Blob, duration: number) => {
+    setVoiceData({
+      audioBlob,
+      duration
+    });
+  };
+
+  const handleVoiceRecordingClear = () => {
+    setVoiceData({
+      audioBlob: null,
+      duration: 0
+    });
+  };
+
+  const convertAudioToBase64 = (audioBlob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        // Remove the data:audio/webm;base64, prefix
+        const base64Data = base64.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(audioBlob);
+    });
   };
 
   const getForwardedTo = () => {
@@ -200,10 +235,23 @@ const ComplaintSubmission = () => {
       return;
     }
 
-    if (!formData.category || !formData.description || !formData.location || !formData.areaType) {
+    // Validation: Either description or voice message is required
+    const hasDescription = formData.description.trim().length > 0;
+    const hasVoiceMessage = voiceData.audioBlob !== null;
+
+    if (!hasDescription && !hasVoiceMessage) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields, including area type.",
+        description: "Please either write a description or record a voice message for your complaint.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.category || !formData.location || !formData.areaType) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields, including area type and category.",
         variant: "destructive"
       });
       return;
@@ -219,6 +267,13 @@ const ComplaintSubmission = () => {
 
       console.log("Submitting complaint with supervisor:", supervisor);
 
+      // Convert voice to base64 if present
+      let voiceMessageBase64 = null;
+      if (voiceData.audioBlob) {
+        voiceMessageBase64 = await convertAudioToBase64(voiceData.audioBlob);
+        console.log("Voice message converted to base64, length:", voiceMessageBase64.length);
+      }
+
       // Save complaint to Supabase database
       const { data: complaint, error: complaintError } = await supabase
         .from("complaints")
@@ -230,7 +285,9 @@ const ComplaintSubmission = () => {
             area_type: formData.areaType,
             forwarded_to: forwardedTo,
             category: formData.category,
-            description: formData.description,
+            description: hasDescription ? formData.description : "Voice message provided",
+            voice_message: voiceMessageBase64,
+            voice_duration: voiceData.duration,
             location_id: locationId,
             assigned_officer_id: supervisor?.id,
             status: 'submitted'
@@ -273,7 +330,7 @@ const ComplaintSubmission = () => {
         areaType: formData.areaType,
         forwardedTo,
         category: formData.category,
-        description: formData.description,
+        description: hasDescription ? formData.description : "Voice message provided",
         image: formData.images[0] || null,
       });
 
@@ -316,6 +373,10 @@ const ComplaintSubmission = () => {
       category: "",
       description: "",
       images: []
+    });
+    setVoiceData({
+      audioBlob: null,
+      duration: 0
     });
   };
 
@@ -542,18 +603,40 @@ const ComplaintSubmission = () => {
                   </Select>
                 </div>
 
+                {/* Voice Recording Section */}
+                <div>
+                  <Label className="text-ts-text font-medium flex items-center gap-2">
+                    <Mic className="h-4 w-4" />
+                    Voice Message (Optional) / వాయిస్ సందేశం
+                  </Label>
+                  <p className="text-sm text-ts-text-secondary mb-3">
+                    Record your complaint in your voice. If you provide a voice message, written description becomes optional.
+                  </p>
+                  <VoiceRecorder 
+                    onRecordingComplete={handleVoiceRecordingComplete}
+                    onRecordingClear={handleVoiceRecordingClear}
+                  />
+                </div>
+
                 <div>
                   <Label htmlFor="description" className="text-ts-text font-medium">
-                    Description (Required) * / వివరణ
+                    Description {voiceData.audioBlob ? "(Optional)" : "(Required) *"} / వివరణ
                   </Label>
                   <Textarea
                     id="description"
-                    required
                     value={formData.description}
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
                     className="mt-2 rounded-lg border-gray-300 focus:border-ts-primary min-h-[120px]"
-                    placeholder="Describe your complaint in detail..."
+                    placeholder={voiceData.audioBlob 
+                      ? "Optional: Add additional written details..." 
+                      : "Describe your complaint in detail..."
+                    }
                   />
+                  {voiceData.audioBlob && (
+                    <p className="text-sm text-green-600 mt-1">
+                      ✓ Voice message recorded. Written description is now optional.
+                    </p>
+                  )}
                 </div>
 
                 <div>

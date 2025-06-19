@@ -157,6 +157,8 @@ export type Database = {
           phone: string | null
           status: Database["public"]["Enums"]["complaint_status"]
           submitted_at: string | null
+          voice_duration: number | null
+          voice_message: string | null
         }
         Insert: {
           area_type?: string | null
@@ -172,6 +174,8 @@ export type Database = {
           phone?: string | null
           status?: Database["public"]["Enums"]["complaint_status"]
           submitted_at?: string | null
+          voice_duration?: number | null
+          voice_message?: string | null
         }
         Update: {
           area_type?: string | null
@@ -187,6 +191,8 @@ export type Database = {
           phone?: string | null
           status?: Database["public"]["Enums"]["complaint_status"]
           submitted_at?: string | null
+          voice_duration?: number | null
+          voice_message?: string | null
         }
         Relationships: [
           {
