@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,63 +8,185 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { Home, Check } from "lucide-react";
-import { complaintsStore, Complaint } from "@/lib/complaintsStore";
+import { Home, Check, User, MapPin, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import LocationContactsManager from "@/components/admin/LocationContactsManager";
+
+interface Supervisor {
+  id: string;
+  name: string;
+  phone: string;
+  location_name: string;
+  complaints: {
+    total: number;
+    completed: number;
+    ongoing: number;
+    pending: number;
+  };
+}
+
+interface Complaint {
+  id: string;
+  name: string;
+  phone: string;
+  location_name: string;
+  category: string;
+  description: string;
+  status: string;
+  submitted_at: string;
+  assigned_officer_id: string;
+}
 
 const AdminDashboard = () => {
   const { toast } = useToast();
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [selectedSupervisor, setSelectedSupervisor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadComplaints = () => {
-      setComplaints(complaintsStore.getComplaints());
-    };
-    
-    loadComplaints();
-    
-    const unsubscribe = complaintsStore.subscribe(loadComplaints);
-    return unsubscribe;
+    loadDashboardData();
   }, []);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    try {
+      // Load all supervisors with their locations
+      const { data: supervisorData, error: supervisorError } = await supabase
+        .from("employee_assignments")
+        .select(`
+          users!inner(
+            id,
+            name,
+            phone,
+            role
+          ),
+          locations!inner(
+            id,
+            name
+          )
+        `)
+        .eq("users.role", "employee");
+
+      if (supervisorError) {
+        console.error("Error loading supervisors:", supervisorError);
+        throw supervisorError;
+      }
+
+      // Load all complaints
+      const { data: complaintsData, error: complaintsError } = await supabase
+        .from("complaints")
+        .select("*")
+        .order("submitted_at", { ascending: false });
+
+      if (complaintsError) {
+        console.error("Error loading complaints:", complaintsError);
+        throw complaintsError;
+      }
+
+      setComplaints(complaintsData || []);
+
+      // Process supervisor data with complaint statistics
+      const supervisorsWithStats = (supervisorData || []).map(item => {
+        const supervisor = item.users;
+        const location = item.locations;
+        
+        const supervisorComplaints = (complaintsData || []).filter(
+          complaint => complaint.assigned_officer_id === supervisor.id
+        );
+
+        const completed = supervisorComplaints.filter(c => c.status === 'resolved').length;
+        const ongoing = supervisorComplaints.filter(c => c.status === 'in_progress').length;
+        const pending = supervisorComplaints.filter(c => c.status === 'submitted').length;
+
+        return {
+          id: supervisor.id,
+          name: supervisor.name || "Unknown Supervisor",
+          phone: supervisor.phone || "N/A",
+          location_name: location.name,
+          complaints: {
+            total: supervisorComplaints.length,
+            completed,
+            ongoing,
+            pending
+          }
+        };
+      });
+
+      setSupervisors(supervisorsWithStats);
+    } catch (error) {
+      console.error("Error loading dashboard data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Submitted": return "bg-ts-secondary text-black";
-      case "In Progress": return "bg-ts-progress text-black";
-      case "Resolved": return "bg-ts-success text-black";
-      default: return "bg-gray-500 text-white";
+      case "submitted": return "bg-yellow-100 text-yellow-800";
+      case "in_progress": return "bg-blue-100 text-blue-800";
+      case "resolved": return "bg-green-100 text-green-800";
+      default: return "bg-gray-100 text-gray-800";
     }
   };
 
-  const handleStatusUpdate = (complaintId: string, action: string) => {
-    if (action === "Assigned") {
-      complaintsStore.updateComplaintStatus(complaintId, "In Progress", "System Assigned Officer");
-    } else if (action === "Resolved") {
-      complaintsStore.updateComplaintStatus(complaintId, "Resolved");
+  const handleStatusUpdate = async (complaintId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("complaints")
+        .update({ status: newStatus })
+        .eq("id", complaintId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Status Updated",
+        description: `Complaint status has been updated to ${newStatus}.`,
+        className: "bg-green-50 text-green-800"
+      });
+
+      // Reload data to reflect changes
+      loadDashboardData();
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update complaint status.",
+        variant: "destructive"
+      });
     }
-    
-    toast({
-      title: "Action Completed",
-      description: `Complaint ${complaintId} has been ${action.toLowerCase()}.`,
-      className: "bg-ts-success text-black"
-    });
   };
 
-  const filteredComplaints = filterStatus === "all" 
-    ? complaints 
-    : complaints.filter(complaint => complaint.status.toLowerCase() === filterStatus);
+  const filteredComplaints = selectedSupervisor 
+    ? complaints.filter(complaint => complaint.assigned_officer_id === selectedSupervisor)
+    : complaints;
 
-  const getStats = () => {
-    const total = complaints.length;
-    const submitted = complaints.filter(c => c.status === "Submitted").length;
-    const inProgress = complaints.filter(c => c.status === "In Progress").length;
-    const resolved = complaints.filter(c => c.status === "Resolved").length;
-    
-    return { total, submitted, inProgress, resolved };
+  const totalStats = {
+    totalComplaints: complaints.length,
+    completedComplaints: complaints.filter(c => c.status === 'resolved').length,
+    ongoingComplaints: complaints.filter(c => c.status === 'in_progress').length,
+    pendingComplaints: complaints.filter(c => c.status === 'submitted').length,
+    totalSupervisors: supervisors.length
   };
 
-  const stats = getStats();
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-ts-background font-poppins">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <div className="text-xl">Loading dashboard...</div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-ts-background font-poppins">
@@ -86,53 +209,122 @@ const AdminDashboard = () => {
           <p className="text-ts-text-secondary font-telugu">అడ్మిన్ డ్యాష్‌బోర్డ్</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* Overall Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <Card className="bg-gradient-to-br from-ts-primary to-ts-primary-dark text-white rounded-xl shadow-lg">
             <CardContent className="p-6">
-              <h3 className="text-2xl font-bold">{stats.total}</h3>
+              <h3 className="text-2xl font-bold">{totalStats.totalComplaints}</h3>
               <p className="text-white/90">Total Complaints</p>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-ts-secondary to-yellow-400 text-black rounded-xl shadow-lg">
+          <Card className="bg-gradient-to-br from-yellow-400 to-yellow-500 text-black rounded-xl shadow-lg">
             <CardContent className="p-6">
-              <h3 className="text-2xl font-bold">{stats.submitted}</h3>
-              <p className="text-black/80">Pending Review</p>
+              <h3 className="text-2xl font-bold">{totalStats.pendingComplaints}</h3>
+              <p className="text-black/80">Pending</p>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-ts-progress to-green-400 text-black rounded-xl shadow-lg">
+          <Card className="bg-gradient-to-br from-blue-400 to-blue-500 text-white rounded-xl shadow-lg">
             <CardContent className="p-6">
-              <h3 className="text-2xl font-bold">{stats.inProgress}</h3>
-              <p className="text-black/80">In Progress</p>
+              <h3 className="text-2xl font-bold">{totalStats.ongoingComplaints}</h3>
+              <p className="text-white/90">In Progress</p>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-ts-success to-green-500 text-black rounded-xl shadow-lg">
+          <Card className="bg-gradient-to-br from-green-400 to-green-500 text-white rounded-xl shadow-lg">
             <CardContent className="p-6">
-              <h3 className="text-2xl font-bold">{stats.resolved}</h3>
-              <p className="text-black/80">Resolved</p>
+              <h3 className="text-2xl font-bold">{totalStats.completedComplaints}</h3>
+              <p className="text-white/90">Completed</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-400 to-purple-500 text-white rounded-xl shadow-lg">
+            <CardContent className="p-6">
+              <h3 className="text-2xl font-bold">{totalStats.totalSupervisors}</h3>
+              <p className="text-white/90">Supervisors</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Filters */}
+        {/* Supervisors Section */}
+        <Card className="mb-8 shadow-lg rounded-xl border-0">
+          <CardHeader>
+            <CardTitle className="text-xl text-ts-text flex items-center">
+              <User className="mr-2 h-5 w-5" />
+              Location Supervisors
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {supervisors.map((supervisor) => (
+                <Card key={supervisor.id} className="border-2 hover:border-ts-primary transition-colors cursor-pointer"
+                      onClick={() => setSelectedSupervisor(supervisor.id === selectedSupervisor ? null : supervisor.id)}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center mb-4">
+                      <div className="bg-ts-primary/10 p-3 rounded-full mr-3">
+                        <User className="h-6 w-6 text-ts-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-ts-text">{supervisor.name}</h3>
+                        <p className="text-sm text-ts-text-secondary">{supervisor.phone}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center mb-4 text-sm text-ts-text-secondary">
+                      <MapPin className="h-4 w-4 mr-1" />
+                      {supervisor.location_name}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div className="bg-yellow-50 p-3 rounded">
+                        <div className="text-lg font-bold text-yellow-700">{supervisor.complaints.pending}</div>
+                        <div className="text-xs text-yellow-600">Pending</div>
+                      </div>
+                      <div className="bg-blue-50 p-3 rounded">
+                        <div className="text-lg font-bold text-blue-700">{supervisor.complaints.ongoing}</div>
+                        <div className="text-xs text-blue-600">Ongoing</div>
+                      </div>
+                      <div className="bg-green-50 p-3 rounded">
+                        <div className="text-lg font-bold text-green-700">{supervisor.complaints.completed}</div>
+                        <div className="text-xs text-green-600">Completed</div>
+                      </div>
+                      <div className="bg-gray-50 p-3 rounded">
+                        <div className="text-lg font-bold text-gray-700">{supervisor.complaints.total}</div>
+                        <div className="text-xs text-gray-600">Total</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Complaints Filter */}
         <Card className="mb-6 shadow-lg rounded-xl border-0">
           <CardHeader>
-            <CardTitle className="text-xl text-ts-text">Filter Complaints</CardTitle>
+            <CardTitle className="text-xl text-ts-text">
+              {selectedSupervisor ? 
+                `Complaints for ${supervisors.find(s => s.id === selectedSupervisor)?.name}` : 
+                "All Complaints"
+              }
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-4">
-              <Select onValueChange={setFilterStatus} defaultValue="all">
-                <SelectTrigger className="w-48 rounded-lg border-gray-300">
-                  <SelectValue placeholder="Filter by Status" />
+              <Select onValueChange={(value) => setSelectedSupervisor(value === "all" ? null : value)} 
+                      defaultValue={selectedSupervisor || "all"}>
+                <SelectTrigger className="w-64 rounded-lg border-gray-300">
+                  <SelectValue placeholder="Filter by Supervisor" />
                 </SelectTrigger>
                 <SelectContent className="bg-white border-gray-200 shadow-lg">
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="submitted">Submitted</SelectItem>
-                  <SelectItem value="in progress">In Progress</SelectItem>
-                  <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="all">All Supervisors</SelectItem>
+                  {supervisors.map((supervisor) => (
+                    <SelectItem key={supervisor.id} value={supervisor.id}>
+                      {supervisor.name} - {supervisor.location_name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -148,52 +340,55 @@ const AdminDashboard = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-lg font-semibold text-ts-text">
-                        {complaint.id}
+                        ID: {complaint.id.slice(0, 8)}...
                       </h3>
                       <Badge className={getStatusColor(complaint.status)}>
-                        {complaint.status}
+                        {complaint.status.replace('_', ' ').toUpperCase()}
                       </Badge>
                     </div>
                     
                     <div className="space-y-1 text-sm text-ts-text-secondary">
                       <p><strong>Name:</strong> {complaint.name || "Anonymous"}</p>
                       <p><strong>Phone:</strong> {complaint.phone}</p>
-                      <p><strong>Location:</strong> {complaint.location || "Not specified"}</p>
+                      <p><strong>Location:</strong> {complaint.location_name || "Not specified"}</p>
                       <p><strong>Category:</strong> {complaint.category}</p>
                       <p><strong>Description:</strong> {complaint.description}</p>
-                      <p><strong>Submitted:</strong> {complaint.submittedDate}</p>
-                      {complaint.assignedOfficer && (
-                        <p><strong>Assigned to:</strong> {complaint.assignedOfficer}</p>
+                      <p><strong>Submitted:</strong> {new Date(complaint.submitted_at).toLocaleDateString()}</p>
+                      {complaint.assigned_officer_id && (
+                        <p><strong>Assigned to:</strong> {
+                          supervisors.find(s => s.id === complaint.assigned_officer_id)?.name || "Unknown"
+                        }</p>
                       )}
                     </div>
                   </div>
                   
                   <div className="flex flex-col gap-2 min-w-fit">
-                    {complaint.status === "Submitted" && (
+                    {complaint.status === "submitted" && (
                       <Button 
-                        onClick={() => handleStatusUpdate(complaint.id, "Assigned")}
-                        className="bg-ts-secondary hover:bg-yellow-500 text-black font-medium rounded-lg"
+                        onClick={() => handleStatusUpdate(complaint.id, "in_progress")}
+                        className="bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg"
                       >
-                        Assign Officer
+                        <Clock className="h-4 w-4 mr-1" />
+                        Start Progress
                       </Button>
                     )}
                     
-                    {complaint.status === "In Progress" && (
+                    {complaint.status === "in_progress" && (
                       <Button 
-                        onClick={() => handleStatusUpdate(complaint.id, "Resolved")}
-                        className="bg-ts-success hover:bg-green-500 text-black font-medium rounded-lg"
+                        onClick={() => handleStatusUpdate(complaint.id, "resolved")}
+                        className="bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg"
                       >
-                        <Check className="h-4 w-4 mr-1" />
+                        <CheckCircle className="h-4 w-4 mr-1" />
                         Mark Resolved
                       </Button>
                     )}
                     
-                    <Button 
-                      variant="outline"
-                      className="border-ts-primary text-ts-primary hover:bg-ts-primary hover:text-white rounded-lg"
-                    >
-                      Upload Photo
-                    </Button>
+                    {complaint.status === "resolved" && (
+                      <div className="flex items-center text-green-600 font-medium">
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Completed
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -203,14 +398,17 @@ const AdminDashboard = () => {
           {filteredComplaints.length === 0 && (
             <Card className="shadow-lg rounded-xl border-0">
               <CardContent className="p-8 text-center">
+                <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-ts-text-secondary">No complaints found for the selected filter.</p>
               </CardContent>
             </Card>
           )}
         </div>
 
-        {/* NEW: Contacts Manager */}
-        <LocationContactsManager />
+        {/* Location Contacts Manager */}
+        <div className="mt-12">
+          <LocationContactsManager />
+        </div>
       </div>
       
       <Footer />

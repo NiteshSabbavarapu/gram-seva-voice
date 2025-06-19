@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,6 @@ const ComplaintSubmission = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedComplaintId, setSubmittedComplaintId] = useState<string | null>(null);
-  const [locationContacts, setLocationContacts] = useState<{contact_name: string, phone: string}[]>([]);
   const [assignedOfficer, setAssignedOfficer] = useState<{name: string, phone: string} | null>(null);
 
   const categories = [
@@ -105,114 +105,92 @@ const ComplaintSubmission = () => {
     return "Unknown Authority";
   };
 
-  useEffect(() => {
-    const fetchContacts = async () => {
-      setLocationContacts([]);
-      if (!formData.location || !formData.areaType) return;
+  const findAssignedSupervisor = async () => {
+    console.log("Finding supervisor for location:", formData.location);
+    
+    let matchedLocationId = null;
+    let supervisorInfo = null;
+    
+    // Check for specific college location first
+    if (formData.location.toLowerCase().includes("cbit") || 
+        formData.location.toLowerCase().includes("college")) {
+      console.log("College location detected");
       
+      const { data: collegeLocs } = await supabase
+        .from("locations")
+        .select("id, name")
+        .eq("name", COLLEGE_LOCATION_NAME)
+        .limit(1);
+        
+      if (collegeLocs && collegeLocs.length > 0) {
+        matchedLocationId = collegeLocs[0].id;
+        console.log("Found college location:", collegeLocs[0]);
+      }
+    } else if (formData.location.toLowerCase().includes("financial") || 
+               formData.location.toLowerCase().includes("district")) {
+      console.log("FD location detected");
+      
+      const { data: fdLocs } = await supabase
+        .from("locations")
+        .select("id, name")
+        .eq("name", LOCATION_NAME)
+        .limit(1);
+        
+      if (fdLocs && fdLocs.length > 0) {
+        matchedLocationId = fdLocs[0].id;
+        console.log("Found FD location:", fdLocs[0]);
+      }
+    } else {
+      // Generic location search
       const { data: locs } = await supabase
         .from("locations")
-        .select("id")
-        .ilike("name", formData.location)
-        .limit(1);
+        .select("id, name")
+        .ilike("name", `%${formData.location}%`)
+        .limit(10);
 
-      const locId = locs?.[0]?.id;
-      if (locId) {
-        const { data: contacts } = await supabase
-          .from("location_contacts")
-          .select("contact_name, phone")
-          .eq("location_id", locId);
-        setLocationContacts(contacts || []);
+      if (locs && locs.length > 0) {
+        const exactMatch = locs.find(loc => 
+          loc.name.toLowerCase().includes(formData.location.toLowerCase()) ||
+          formData.location.toLowerCase().includes(loc.name.toLowerCase())
+        );
+        matchedLocationId = exactMatch?.id;
+        console.log("Found generic location match:", exactMatch);
       }
-    };
-    fetchContacts();
-  }, [formData.location, formData.areaType]);
+    }
 
-  useEffect(() => {
-    const fetchAssignedOfficer = async () => {
-      setAssignedOfficer(null);
-      if (!formData.location || !formData.areaType) return;
-
-      console.log("Looking for officer for location:", formData.location);
-
-      // Check for specific college location first
-      let matchedLocationId = null;
+    if (matchedLocationId) {
+      console.log("Looking for assigned supervisor for location ID:", matchedLocationId);
       
-      if (formData.location.toLowerCase().includes("cbit") || 
-          formData.location.toLowerCase().includes("college")) {
-        console.log("College location detected, looking for college supervisor");
+      const { data: assignments } = await supabase
+        .from("employee_assignments")
+        .select(`
+          user_id,
+          users!inner(
+            id,
+            name,
+            phone,
+            role
+          )
+        `)
+        .eq("location_id", matchedLocationId)
+        .eq("users.role", "employee")
+        .limit(1);
         
-        const { data: collegeLocs } = await supabase
-          .from("locations")
-          .select("id, name")
-          .eq("name", COLLEGE_LOCATION_NAME)
-          .limit(1);
-          
-        if (collegeLocs && collegeLocs.length > 0) {
-          matchedLocationId = collegeLocs[0].id;
-          console.log("Found college location:", collegeLocs[0]);
-        }
-      } else if (formData.location.toLowerCase().includes("financial") || 
-                 formData.location.toLowerCase().includes("district")) {
-        console.log("FD location detected, looking for FD supervisor");
-        
-        const { data: fdLocs } = await supabase
-          .from("locations")
-          .select("id, name")
-          .eq("name", LOCATION_NAME)
-          .limit(1);
-          
-        if (fdLocs && fdLocs.length > 0) {
-          matchedLocationId = fdLocs[0].id;
-          console.log("Found FD location:", fdLocs[0]);
-        }
-      } else {
-        // Generic location search
-        const { data: locs } = await supabase
-          .from("locations")
-          .select("id, name")
-          .ilike("name", `%${formData.location}%`)
-          .limit(10);
-
-        if (locs && locs.length > 0) {
-          const exactMatch = locs.find(loc => 
-            loc.name.toLowerCase().includes(formData.location.toLowerCase()) ||
-            formData.location.toLowerCase().includes(loc.name.toLowerCase())
-          );
-          matchedLocationId = exactMatch?.id;
-          console.log("Found generic location match:", exactMatch);
-        }
+      console.log("Found supervisor assignments:", assignments);
+      
+      if (assignments && assignments.length > 0) {
+        const supervisor = assignments[0].users;
+        supervisorInfo = {
+          id: supervisor.id,
+          name: supervisor.name || "Supervisor",
+          phone: supervisor.phone || "N/A"
+        };
+        console.log("Found supervisor:", supervisorInfo);
       }
-
-      if (matchedLocationId) {
-        console.log("Looking for assigned officer for location ID:", matchedLocationId);
-        
-        const { data: assignments } = await supabase
-          .from("employee_assignments")
-          .select("user_id")
-          .eq("location_id", matchedLocationId)
-          .limit(1);
-          
-        console.log("Found assignments:", assignments);
-        
-        const userId = assignments?.[0]?.user_id;
-        if (userId) {
-          const { data: userRow } = await supabase
-            .from("users")
-            .select("name, phone")
-            .eq("id", userId)
-            .maybeSingle();
-            
-          console.log("Found officer:", userRow);
-          
-          if (userRow) {
-            setAssignedOfficer({ name: userRow.name || "Officer", phone: userRow.phone || "N/A" });
-          }
-        }
-      }
-    };
-    fetchAssignedOfficer();
-  }, [formData.location, formData.areaType, submittedComplaintId]);
+    }
+    
+    return { locationId: matchedLocationId, supervisor: supervisorInfo };
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,66 +212,12 @@ const ComplaintSubmission = () => {
     setIsSubmitting(true);
     
     try {
-      // Find the location id and assigned officer
-      let assignedOfficerId: string | undefined;
-      let locId: string | undefined;
+      // Find assigned supervisor for the location
+      const { locationId, supervisor } = await findAssignedSupervisor();
       
-      // Check for specific college location first
-      if (formData.location.toLowerCase().includes("cbit") || 
-          formData.location.toLowerCase().includes("college")) {
-        console.log("Submitting complaint for college location");
-        
-        const { data: collegeLocs } = await supabase
-          .from("locations")
-          .select("id, name")
-          .eq("name", COLLEGE_LOCATION_NAME)
-          .limit(1);
-          
-        if (collegeLocs && collegeLocs.length > 0) {
-          locId = collegeLocs[0].id;
-        }
-      } else if (formData.location.toLowerCase().includes("financial") || 
-                 formData.location.toLowerCase().includes("district")) {
-        console.log("Submitting complaint for FD location");
-        
-        const { data: fdLocs } = await supabase
-          .from("locations")
-          .select("id, name")
-          .eq("name", LOCATION_NAME)
-          .limit(1);
-          
-        if (fdLocs && fdLocs.length > 0) {
-          locId = fdLocs[0].id;
-        }
-      } else {
-        // Generic location search
-        const { data: locs } = await supabase
-          .from("locations")
-          .select("id, name")
-          .ilike("name", `%${formData.location}%`)
-          .limit(10);
-
-        if (locs && locs.length > 0) {
-          const exactMatch = locs.find(loc => 
-            loc.name.toLowerCase().includes(formData.location.toLowerCase()) ||
-            formData.location.toLowerCase().includes(loc.name.toLowerCase())
-          );
-          locId = exactMatch?.id;
-        }
-      }
-
-      // Find assigned officer for that location
-      if (locId) {
-        const { data: assignment } = await supabase
-          .from("employee_assignments")
-          .select("user_id")
-          .eq("location_id", locId)
-          .limit(1);
-        assignedOfficerId = assignment?.[0]?.user_id;
-        console.log("Found assigned officer ID:", assignedOfficerId);
-      }
-
       const forwardedTo = getForwardedTo();
+
+      console.log("Submitting complaint with supervisor:", supervisor);
 
       // Save complaint to Supabase database
       const { data: complaint, error: complaintError } = await supabase
@@ -307,8 +231,8 @@ const ComplaintSubmission = () => {
             forwarded_to: forwardedTo,
             category: formData.category,
             description: formData.description,
-            location_id: locId,
-            assigned_officer_id: assignedOfficerId,
+            location_id: locationId,
+            assigned_officer_id: supervisor?.id,
             status: 'submitted'
           }
         ])
@@ -322,24 +246,26 @@ const ComplaintSubmission = () => {
 
       console.log("Complaint saved successfully:", complaint);
 
-      // If there's an assigned officer, create an assignment record
-      if (assignedOfficerId && complaint.id) {
+      // Create assignment record if supervisor found
+      if (supervisor && complaint.id) {
         const { error: assignmentError } = await supabase
           .from("complaint_assignments")
           .insert([
             {
               complaint_id: complaint.id,
-              assigned_to: assignedOfficerId,
+              assigned_to: supervisor.id,
               status: 'assigned'
             }
           ]);
 
         if (assignmentError) {
           console.error("Error creating assignment:", assignmentError);
+        } else {
+          console.log("Assignment created successfully");
         }
       }
 
-      // Also save to local store for backward compatibility
+      // Save to local store for backward compatibility
       const localComplaintId = complaintsStore.addComplaint({
         name: user.name,
         phone: user.phone,
@@ -352,22 +278,16 @@ const ComplaintSubmission = () => {
       });
 
       setSubmittedComplaintId(complaint.id || localComplaintId);
-
-      // Set assigned officer if found
-      if (assignedOfficerId) {
-        const { data: userRow } = await supabase
-          .from("users")
-          .select("name, phone")
-          .eq("id", assignedOfficerId)
-          .maybeSingle();
-        if (userRow) {
-          setAssignedOfficer({ name: userRow.name || "Officer", phone: userRow.phone || "N/A" });
-        }
+      
+      if (supervisor) {
+        setAssignedOfficer({ name: supervisor.name, phone: supervisor.phone });
       }
 
       toast({
         title: "Complaint Submitted Successfully!",
-        description: `Your complaint has been forwarded to: ${forwardedTo}`,
+        description: supervisor 
+          ? `Your complaint has been assigned to ${supervisor.name}` 
+          : `Your complaint has been forwarded to: ${forwardedTo}`,
         className: "bg-ts-success text-black"
       });
 
@@ -389,6 +309,7 @@ const ComplaintSubmission = () => {
 
   const handleSubmitAnother = () => {
     setSubmittedComplaintId(null);
+    setAssignedOfficer(null);
     setFormData({
       location: "",
       areaType: "",
@@ -460,30 +381,30 @@ const ComplaintSubmission = () => {
                   <p className="text-sm text-ts-text-secondary">
                     Please save this ID for tracking your complaint status
                   </p>
-                  <div className="mt-4">
-                    <h3 className="font-semibold text-ts-text mb-1">📍 Forwarded To (Officer-in-charge):</h3>
-                    {assignedOfficer ? (
-                      <div className="mb-2">
-                        <span className="font-semibold">{assignedOfficer.name}</span>
-                        <span className="mx-2">–</span>
-                        <span className="text-blue-900">{assignedOfficer.phone}</span>
+                  
+                  {assignedOfficer ? (
+                    <div className="mt-4 bg-blue-50 rounded p-4">
+                      <h3 className="font-semibold text-blue-800 mb-2">📍 Assigned to Supervisor:</h3>
+                      <div className="text-left">
+                        <div className="mb-1">
+                          <span className="font-semibold">{assignedOfficer.name}</span>
+                          <span className="mx-2">–</span>
+                          <span className="text-blue-900">{assignedOfficer.phone}</span>
+                        </div>
+                        <p className="text-sm text-blue-700">
+                          Your complaint has been directly assigned to the location supervisor for faster resolution.
+                        </p>
                       </div>
-                    ) : (
+                    </div>
+                  ) : (
+                    <div className="mt-4">
+                      <h3 className="font-semibold text-ts-text mb-1">📍 Forwarded To:</h3>
                       <div className="mb-2">{getForwardedTo()}</div>
-                    )}
-                    {locationContacts.length > 0 && (
-                      <div className="bg-blue-50 rounded p-4 mt-2 text-left">
-                        <h4 className="font-medium text-blue-700 mb-1">📞 Key Contacts</h4>
-                        {locationContacts.map((c, i) => (
-                          <div key={i} className="mb-1">
-                            <span className="font-semibold">{c.contact_name}</span>
-                            <span className="mx-2">–</span>
-                            <span className="text-blue-900">{c.phone}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                      <p className="text-sm text-amber-600">
+                        No dedicated supervisor found for this location. Complaint forwarded to general authority.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-4">
