@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,10 @@ import Footer from "@/components/Footer";
 import { Home, Check, User, MapPin, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import LocationContactsManager from "@/components/admin/LocationContactsManager";
+import type { Database } from "@/integrations/supabase/types";
+
+// Define the complaint status type
+type ComplaintStatus = Database["public"]["Enums"]["complaint_status"];
 
 interface Supervisor {
   id: string;
@@ -32,7 +35,7 @@ interface Complaint {
   location_name: string;
   category: string;
   description: string;
-  status: string;
+  status: ComplaintStatus;
   submitted_at: string;
   assigned_officer_id: string;
 }
@@ -126,7 +129,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: ComplaintStatus) => {
     switch (status) {
       case "submitted": return "bg-yellow-100 text-yellow-800";
       case "in_progress": return "bg-blue-100 text-blue-800";
@@ -135,7 +138,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleStatusUpdate = async (complaintId: string, newStatus: string) => {
+  const handleStatusUpdate = async (complaintId: string, newStatus: ComplaintStatus) => {
     try {
       const { error } = await supabase
         .from("complaints")
