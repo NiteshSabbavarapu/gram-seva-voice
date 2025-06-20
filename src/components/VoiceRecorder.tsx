@@ -5,11 +5,10 @@ import { Mic, Square, Play, Pause, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface VoiceRecorderProps {
-  onRecordingComplete: (audioBlob: Blob, duration: number) => void;
-  onRecordingClear: () => void;
+  onRecorded: (recording: { blob: Blob; duration: number; base64: string }) => void;
 }
 
-const VoiceRecorder = ({ onRecordingComplete, onRecordingClear }: VoiceRecorderProps) => {
+const VoiceRecorder = ({ onRecorded }: VoiceRecorderProps) => {
   const { toast } = useToast();
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -21,6 +20,20 @@ const VoiceRecorder = ({ onRecordingComplete, onRecordingClear }: VoiceRecorderP
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recordingStartTime = useRef<number>(0);
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
+
+  const convertBlobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        // Remove the data URL prefix to get just the base64 string
+        const base64Data = base64String.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
 
   const startRecording = async () => {
     try {
@@ -34,10 +47,26 @@ const VoiceRecorder = ({ onRecordingComplete, onRecordingClear }: VoiceRecorderP
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks, { type: 'audio/webm' });
         setAudioBlob(blob);
-        onRecordingComplete(blob, recordingDuration);
+        
+        // Convert to base64 and call the callback
+        try {
+          const base64 = await convertBlobToBase64(blob);
+          onRecorded({
+            blob,
+            duration: recordingDuration,
+            base64
+          });
+        } catch (error) {
+          console.error('Error converting audio to base64:', error);
+          toast({
+            title: "Conversion Error",
+            description: "Could not process audio recording.",
+            variant: "destructive"
+          });
+        }
         
         // Stop all tracks to release microphone
         stream.getTracks().forEach(track => track.stop());
@@ -123,7 +152,6 @@ const VoiceRecorder = ({ onRecordingComplete, onRecordingClear }: VoiceRecorderP
     setRecordingDuration(0);
     setPlaybackDuration(0);
     setIsPlaying(false);
-    onRecordingClear();
 
     toast({
       title: "Recording Cleared",
