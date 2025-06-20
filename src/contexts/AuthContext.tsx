@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface User {
+  id: string;
   name: string;
   phone: string;
   isVerified: boolean;
@@ -29,7 +30,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = (phone: string, name: string) => {
-    const userData = { phone, name, isVerified: true };
+    // Generate a simple UUID-like id for the user
+    const id = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    const userData = { id, phone, name, isVerified: true };
     setUser(userData);
     localStorage.setItem('tsGramSevaUser', JSON.stringify(userData));
   };
