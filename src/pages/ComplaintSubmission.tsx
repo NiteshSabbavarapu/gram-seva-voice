@@ -13,7 +13,6 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoginModal from "@/components/LoginModal";
 import VoiceRecorder from "@/components/VoiceRecorder";
-import LocationDetector from "@/components/LocationDetector";
 import { Home, FileText, MapPin, User, Phone, MessageSquare, Mic } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,7 +44,6 @@ const ComplaintSubmission = () => {
     description: "",
     areaType: "",
   });
-  const [detectedLocation, setDetectedLocation] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [voiceRecording, setVoiceRecording] = useState<{
     blob: Blob;
@@ -55,11 +53,6 @@ const ComplaintSubmission = () => {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleLocationDetected = (location: string) => {
-    setDetectedLocation(location);
-    setFormData(prev => ({ ...prev, location }));
   };
 
   const handleVoiceRecorded = (recording: { blob: Blob; duration: number; base64: string }) => {
@@ -307,21 +300,18 @@ const ComplaintSubmission = () => {
                     <MapPin className="mr-2 h-4 w-4" />
                     Location *
                   </Label>
-                  <div className="mt-2 space-y-3">
-                    <LocationDetector onLocationDetected={handleLocationDetected} />
-                    <Select onValueChange={(value) => handleInputChange("location", value)} value={formData.location}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locations.map((location) => (
-                          <SelectItem key={location} value={location}>
-                            {location}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select onValueChange={(value) => handleInputChange("location", value)} value={formData.location}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="Select your location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map((location) => (
+                        <SelectItem key={location} value={location}>
+                          {location}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
