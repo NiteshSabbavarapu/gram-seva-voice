@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,8 +13,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoginModal from "@/components/LoginModal";
 import VoiceRecorder from "@/components/VoiceRecorder";
-import LocationDetector from "@/components/LocationDetector";
-import { Home, FileText, MapPin, User, Phone, MessageSquare, Mic } from "lucide-react";
+import { Home, FileText, User, Phone, MessageSquare, Mic } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -44,25 +44,22 @@ const ComplaintSubmission = () => {
     description: "",
     areaType: "",
   });
-  const [detectedLocation, setDetectedLocation] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [voiceRecording, setVoiceRecording] = useState<{
     blob: Blob;
     duration: number;
-    base64: string;
   } | null>(null);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleLocationDetected = (location: string) => {
-    setDetectedLocation(location);
-    setFormData(prev => ({ ...prev, location }));
+  const handleVoiceRecordingComplete = (audioBlob: Blob, duration: number) => {
+    setVoiceRecording({ blob: audioBlob, duration });
   };
 
-  const handleVoiceRecorded = (recording: { blob: Blob; duration: number; base64: string }) => {
-    setVoiceRecording(recording);
+  const handleVoiceRecordingClear = () => {
+    setVoiceRecording(null);
   };
 
   const validateForm = () => {
@@ -131,6 +128,19 @@ const ComplaintSubmission = () => {
     setIsSubmitting(true);
 
     try {
+      // Convert voice recording to base64 if present
+      let voiceBase64 = null;
+      if (voiceRecording) {
+        const reader = new FileReader();
+        voiceBase64 = await new Promise<string>((resolve) => {
+          reader.onloadend = () => {
+            const base64 = reader.result as string;
+            resolve(base64.split(',')[1]); // Remove data:audio/webm;base64, prefix
+          };
+          reader.readAsDataURL(voiceRecording.blob);
+        });
+      }
+
       // Prepare complaint data
       const complaintData = {
         name: formData.name,
@@ -139,9 +149,8 @@ const ComplaintSubmission = () => {
         category: formData.category,
         description: voiceRecording ? "Voice message provided" : formData.description,
         area_type: formData.areaType,
-        voice_message: voiceRecording?.base64 || null,
+        voice_message: voiceBase64,
         voice_duration: voiceRecording?.duration || null,
-        citizen_id: user?.id || null,
         status: 'submitted' as const,
         submitted_at: new Date().toISOString()
       };
@@ -159,33 +168,6 @@ const ComplaintSubmission = () => {
       }
 
       console.log('Complaint submitted successfully:', data);
-
-      // Auto-assign to supervisor if available
-      try {
-        const { data: locationData } = await supabase
-          .from('locations')
-          .select('id')
-          .eq('name', formData.location)
-          .single();
-
-        if (locationData) {
-          const { data: supervisorData } = await supabase
-            .from('employee_assignments')
-            .select('user_id')
-            .eq('location_id', locationData.id)
-            .limit(1)
-            .single();
-
-          if (supervisorData) {
-            await supabase
-              .from('complaints')
-              .update({ assigned_officer_id: supervisorData.user_id })
-              .eq('id', data.id);
-          }
-        }
-      } catch (assignmentError) {
-        console.log('No supervisor found for auto-assignment');
-      }
 
       toast({
         title: "Success!",
@@ -302,25 +284,19 @@ const ComplaintSubmission = () => {
                 </div>
 
                 <div>
-                  <Label className="text-ts-text flex items-center">
-                    <MapPin className="mr-2 h-4 w-4" />
-                    Location *
-                  </Label>
-                  <div className="mt-2 space-y-3">
-                    <LocationDetector onLocationDetected={handleLocationDetected} />
-                    <Select onValueChange={(value) => handleInputChange("location", value)} value={formData.location}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locations.map((location) => (
-                          <SelectItem key={location} value={location}>
-                            {location}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Label className="text-ts-text">Location *</Label>
+                  <Select onValueChange={(value) => handleInputChange("location", value)} value={formData.location}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select your location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map((location) => (
+                        <SelectItem key={location} value={location}>
+                          {location}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
@@ -364,7 +340,10 @@ const ComplaintSubmission = () => {
                   </Label>
                   
                   <div className="space-y-4">
-                    <VoiceRecorder onRecorded={handleVoiceRecorded} />
+                    <VoiceRecorder 
+                      onRecordingComplete={handleVoiceRecordingComplete}
+                      onRecordingClear={handleVoiceRecordingClear}
+                    />
                     
                     {!voiceRecording && (
                       <div>

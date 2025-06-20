@@ -42,36 +42,17 @@ const SupervisorDashboard = () => {
   }, [user]);
 
   const loadSupervisorData = async () => {
-    if (!user?.id) return;
+    if (!user?.phone) return;
 
     setLoading(true);
     try {
-      // Get supervisor's assigned location
-      const { data: assignmentData, error: assignmentError } = await supabase
-        .from("employee_assignments")
-        .select(`
-          locations!inner(
-            id,
-            name
-          )
-        `)
-        .eq("user_id", user.id)
-        .single();
-
-      if (assignmentError) {
-        console.error("Error loading assignment:", assignmentError);
-        throw assignmentError;
-      }
-
-      const location = assignmentData.locations;
-      setLocationName(location.name);
-
-      // Load complaints for this supervisor
+      // For demo purposes, load sample complaints
+      // In a real app, you'd fetch based on supervisor assignments
       const { data: complaintsData, error: complaintsError } = await supabase
         .from("complaints")
         .select("*")
-        .eq("assigned_officer_id", user.id)
-        .order("submitted_at", { ascending: false });
+        .order("submitted_at", { ascending: false })
+        .limit(10);
 
       if (complaintsError) {
         console.error("Error loading complaints:", complaintsError);
@@ -79,6 +60,7 @@ const SupervisorDashboard = () => {
       }
 
       setComplaints(complaintsData || []);
+      setLocationName("Sample Location");
     } catch (error) {
       console.error("Error loading supervisor data:", error);
       toast({
@@ -268,7 +250,7 @@ const SupervisorDashboard = () => {
         {/* Complaints List */}
         <Card className="shadow-lg rounded-xl border-0">
           <CardHeader>
-            <CardTitle className="text-xl text-ts-text">Your Assigned Complaints</CardTitle>
+            <CardTitle className="text-xl text-ts-text">Recent Complaints</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -369,7 +351,7 @@ const SupervisorDashboard = () => {
                 <Card className="shadow-lg rounded-xl border-0">
                   <CardContent className="p-8 text-center">
                     <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-ts-text-secondary">No complaints assigned to you yet.</p>
+                    <p className="text-ts-text-secondary">No complaints available.</p>
                   </CardContent>
                 </Card>
               )}
