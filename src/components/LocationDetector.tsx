@@ -1,17 +1,12 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MapPin, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface LocationDetectorProps {
-  onLocationDetected: (location: string, areaType: "Village" | "City" | "") => void;
+  onLocationDetected: (location: string) => void;
 }
-
-const AREA_TYPE_LABELS = {
-  Village: "Village (గ్రామం)",
-  City: "City (నగరం)",
-  "": "",
-};
 
 const reverseGeocode = async (lat: number, lon: number) => {
   // Use OpenStreetMap Nominatim
@@ -21,41 +16,9 @@ const reverseGeocode = async (lat: number, lon: number) => {
   return await resp.json();
 };
 
-function determineAreaType(address: any): "Village" | "City" | "" {
-  const addressString = JSON.stringify(address).toLowerCase();
-
-  // Check for Village keywords
-  if (
-    addressString.includes("village") ||
-    addressString.includes("gram") ||
-    addressString.includes("mandal") ||
-    addressString.includes("revenue village") ||
-    addressString.includes("rural")
-  ) {
-    return "Village";
-  }
-
-  if (
-    addressString.includes("municipality") ||
-    addressString.includes("city") ||
-    addressString.includes("urban") ||
-    addressString.includes("town") ||
-    addressString.includes("ghmc") ||
-    addressString.includes("municipal corporation")
-  ) {
-    return "City";
-  }
-  // Fallback: if there's a town field, treat as City; if village, treat as Village
-  if (address?.village) return "Village";
-  if (address?.city || address?.town || address?.municipality) return "City";
-  return "";
-}
-
 const LocationDetector: React.FC<LocationDetectorProps> = ({ onLocationDetected }) => {
   const [isDetecting, setIsDetecting] = useState(false);
   const { toast } = useToast();
-
-  const [lastCoords, setLastCoords] = useState<{ lat: number; lon: number } | null>(null);
 
   const detectLocation = () => {
     if (!navigator.geolocation) {
@@ -73,7 +36,6 @@ const LocationDetector: React.FC<LocationDetectorProps> = ({ onLocationDetected 
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
-          setLastCoords({ lat: latitude, lon: longitude });
           // Reverse geocode
           const result = await reverseGeocode(latitude, longitude);
           const address = result.address || {};
@@ -93,11 +55,8 @@ const LocationDetector: React.FC<LocationDetectorProps> = ({ onLocationDetected 
           if (address.county) locationString += `, ${address.county}`;
           if (address.state) locationString += `, ${address.state}`;
 
-          // Area type logic
-          const areaType = determineAreaType(address);
-
           // Autofill
-          onLocationDetected(locationString, areaType);
+          onLocationDetected(locationString);
 
           toast({
             title: "Location Detected!",
