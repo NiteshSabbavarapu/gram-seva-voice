@@ -10,6 +10,7 @@ import ComplaintSubmission from "./pages/ComplaintSubmission";
 import ComplaintTracking from "./pages/ComplaintTracking";
 import OfficialLogin from "./pages/OfficialLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import SupervisorDashboard from "./pages/SupervisorDashboard";
 import Contact from "./pages/Contact";
 import MyComplaints from "./pages/MyComplaints";
 import NotFound from "./pages/NotFound";
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/my-complaints" element={<MyComplaints />} />
             <Route path="/official-login" element={<OfficialLogin />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
+            <Route path="/supervisor-dashboard" element={<SupervisorDashboard />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
