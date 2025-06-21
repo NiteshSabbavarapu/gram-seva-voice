@@ -228,20 +228,28 @@ const ComplaintSubmission = () => {
         });
       }
 
-      // Prepare complaint data
-      const complaintData = {
+      // Prepare complaint data for insertion
+      const complaintData: any = {
         name: formData.name,
         phone: isAuthenticated && user?.phone ? user.phone : formData.phone,
         location_name: location,
-        location_id: locationId,
         category: formData.category,
-        description: voiceRecording ? "Voice message provided" : formData.description,
-        voice_message: voiceBase64,
-        voice_duration: voiceRecording?.duration || null,
-        assigned_officer_id: assignedOfficerId,
-        status: 'submitted' as const,
+        description: formData.description.trim() || (voiceRecording ? "Voice message provided" : ""),
+        status: 'submitted',
         submitted_at: new Date().toISOString()
       };
+      
+      // Only include optional fields if they have a value
+      if (locationId) complaintData.location_id = locationId;
+      if (assignedOfficerId) complaintData.assigned_officer_id = assignedOfficerId;
+      if (voiceBase64) complaintData.voice_message = voiceBase64;
+      if (voiceRecording?.duration) complaintData.voice_duration = voiceRecording.duration;
+      
+      // Get current user's ID from Supabase auth
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser?.id) {
+        complaintData.user_id = authUser.id;
+      }
 
       // Insert complaint into database
       const { data, error } = await supabase
@@ -251,7 +259,7 @@ const ComplaintSubmission = () => {
         .single();
 
       if (error) {
-        console.error('Error submitting complaint:', error);
+        console.error('Supabase insert error:', error);
         throw error;
       }
 
