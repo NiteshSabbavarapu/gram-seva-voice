@@ -7,7 +7,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.post('/api/chat', async (req, res) => {
+// This is the serverless function handler for Vercel
+const handler = async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
   const { message, location } = req.body;
   // You can now use location.latitude and location.longitude
   // Store complaint, or add to OpenAI prompt, etc.
@@ -35,7 +40,6 @@ app.post('/api/chat', async (req, res) => {
     console.error('Backend error:', err);
     res.status(500).json({ reply: 'Backend error.' });
   }
-});
+};
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Proxy listening on port ${PORT}`)); 
+export default handler; 

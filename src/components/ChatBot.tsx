@@ -35,7 +35,7 @@ const ChatBot = () => {
           async (position) => {
             const { latitude, longitude } = position.coords;
             try {
-              const res = await fetch("http://localhost:3001/api/chat", {
+              const res = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ message: userMsg.text, location: { latitude, longitude } })
@@ -59,7 +59,7 @@ const ChatBot = () => {
 
     // Default: send as usual
     try {
-      const res = await fetch("http://localhost:3001/api/chat", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMsg.text })

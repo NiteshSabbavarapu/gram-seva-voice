@@ -189,22 +189,30 @@ const ComplaintSubmission = () => {
       let assignedOfficerId = null;
       let locationId = null;
       if (mandalName) {
-        // Find the location_id for this mandal
-        const { data: locationData, error: locationError } = await supabase
+        // Try to find the location and supervisor, but don't fail if not found.
+        const { data: locationData } = await supabase
           .from('locations')
           .select('id, name')
           .ilike('name', `%${mandalName}%`)
           .single();
-        if (locationError || !locationData) throw new Error('Location not found for mandal: ' + mandalName);
-        locationId = locationData.id;
-        // Find the supervisor for this location
-        const { data: assignment, error: assignmentError } = await supabase
-          .from('employee_assignments')
-          .select('user_id')
-          .eq('location_id', locationId)
-          .single();
-        if (assignmentError || !assignment) throw new Error('Supervisor not found for location: ' + mandalName);
-        assignedOfficerId = assignment.user_id;
+        
+        if (locationData) {
+          locationId = locationData.id;
+          // Now find the supervisor
+          const { data: assignment } = await supabase
+            .from('employee_assignments')
+            .select('user_id')
+            .eq('location_id', locationId)
+            .single();
+          
+          if (assignment) {
+            assignedOfficerId = assignment.user_id;
+          } else {
+            console.warn(`Supervisor not found for location: ${mandalName} (ID: ${locationId})`);
+          }
+        } else {
+          console.warn(`Location not found in DB for mandal: ${mandalName}`);
+        }
       }
 
       // Convert voice recording to base64 if present

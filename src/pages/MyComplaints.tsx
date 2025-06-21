@@ -379,14 +379,6 @@ const MyComplaints = () => {
                                 📍 {complaint.location_name}
                               </p>
                             )}
-                            {/* Debug Output for Feedback Button Troubleshooting */}
-                            <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mt-2 text-xs text-yellow-900">
-                              <div><b>DEBUG:</b></div>
-                              <div>Status: {String(complaint.status)}</div>
-                              <div>Assigned Officer ID: {String(complaint.assigned_officer_id)}</div>
-                              <div>Feedback Given: {String(feedbackStatus[complaint.id])}</div>
-                              <div>Checking Feedback: {String(checkingFeedback[complaint.id])}</div>
-                            </div>
                             
                             {/* Voice Message Section */}
                             {complaint.voice_message && (
