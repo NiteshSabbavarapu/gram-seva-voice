@@ -176,94 +176,68 @@ const ComplaintSubmission = () => {
         location = `${manualLocation.mandal}, ${manualLocation.district}`;
       }
 
-      // Supervisor assignment logic
+      // --- Supervisor Assignment Logic (Now More Resilient) ---
+      let assignedOfficerId = null;
+      let locationId = null;
       let mandalName = "";
+      
       if (useManual && manualLocation.mandal) {
         mandalName = manualLocation.mandal.split("(")[0].trim();
       } else if (formData.location) {
         const parts = formData.location.split(",");
-        if (parts.length > 0) {
-          mandalName = parts[0].split("(")[0].trim();
-        }
+        if (parts.length > 0) mandalName = parts[0].split("(")[0].trim();
       }
-      let assignedOfficerId = null;
-      let locationId = null;
+
       if (mandalName) {
-        // Try to find the location and supervisor, but don't fail if not found.
-        const { data: locationData } = await supabase
-          .from('locations')
-          .select('id, name')
-          .ilike('name', `%${mandalName}%`)
-          .single();
-        
+        const { data: locationData } = await supabase.from('locations').select('id, name').ilike('name', `%${mandalName}%`).limit(1).single();
         if (locationData) {
           locationId = locationData.id;
-          // Now find the supervisor
-          const { data: assignment } = await supabase
-            .from('employee_assignments')
-            .select('user_id')
-            .eq('location_id', locationId)
-            .single();
-          
+          const { data: assignment } = await supabase.from('employee_assignments').select('user_id').eq('location_id', locationId).single();
           if (assignment) {
             assignedOfficerId = assignment.user_id;
           } else {
-            console.warn(`Supervisor not found for location: ${mandalName} (ID: ${locationId})`);
+            console.warn(`Supervisor not assigned for location: ${mandalName}`);
           }
         } else {
-          console.warn(`Location not found in DB for mandal: ${mandalName}`);
+          console.warn(`Location not found in DB: ${mandalName}`);
         }
       }
 
-      // Convert voice recording to base64 if present
+      // --- Voice Recording Logic ---
       let voiceBase64 = null;
       if (voiceRecording) {
-        const reader = new FileReader();
-        voiceBase64 = await new Promise<string>((resolve) => {
-          reader.onloadend = () => {
-            const base64 = reader.result as string;
-            resolve(base64.split(',')[1]); // Remove data:audio/webm;base64, prefix
-          };
+        voiceBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
           reader.readAsDataURL(voiceRecording.blob);
         });
       }
 
-      // Prepare complaint data for insertion
-      const complaintData: any = {
+      // --- Prepare Complaint Data (Now More Robust) ---
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const complaintData = {
         name: formData.name,
-        phone: isAuthenticated && user?.phone ? user.phone : formData.phone,
+        phone: user?.phone || formData.phone,
         location_name: location,
         category: formData.category,
         description: formData.description.trim() || (voiceRecording ? "Voice message provided" : ""),
-        status: 'submitted',
-        submitted_at: new Date().toISOString()
+        status: 'submitted' as const,
+        submitted_at: new Date().toISOString(),
+        ...(locationId && { location_id: locationId }),
+        ...(assignedOfficerId && { assigned_officer_id: assignedOfficerId }),
+        ...(voiceBase64 && { voice_message: voiceBase64 }),
+        ...(voiceRecording?.duration && { voice_duration: voiceRecording.duration }),
+        ...(authUser?.id && { user_id: authUser.id }),
       };
-      
-      // Only include optional fields if they have a value
-      if (locationId) complaintData.location_id = locationId;
-      if (assignedOfficerId) complaintData.assigned_officer_id = assignedOfficerId;
-      if (voiceBase64) complaintData.voice_message = voiceBase64;
-      if (voiceRecording?.duration) complaintData.voice_duration = voiceRecording.duration;
-      
-      // Get current user's ID from Supabase auth
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser?.id) {
-        complaintData.user_id = authUser.id;
-      }
 
-      // Insert complaint into database
-      const { data, error } = await supabase
-        .from('complaints')
-        .insert([complaintData])
-        .select()
-        .single();
+      // --- Insert into Database ---
+      const { data, error } = await supabase.from('complaints').insert([complaintData]).select().single();
 
       if (error) {
         console.error('Supabase insert error:', error);
         throw error;
       }
 
-      // Instead of navigate, show success message
       setSuccessData({ id: data.id });
       toast({
         title: "Success!",
