@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +15,10 @@ import VoiceRecorder from "@/components/VoiceRecorder";
 import { Home, FileText, User, Phone, MessageSquare, Mic } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import LocationDetector from "@/components/LocationDetector";
+import telanganaData from "@/constants/telangana_structure.json";
+import FeedbackForm from "../components/FeedbackForm";
+import { supervisorNumbers } from "@/constants/supervisorNumbers";
 
 const categories = [
   "Water Supply", "Electricity", "Roads", "Sanitation", "Education", "Healthcare", 
@@ -35,20 +38,26 @@ const ComplaintSubmission = () => {
   const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
-  
   const [formData, setFormData] = useState({
     name: "",
-    phone: "",
+    phone: user?.phone || "",
     location: "",
     category: "",
     description: "",
-    areaType: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [voiceRecording, setVoiceRecording] = useState<{
     blob: Blob;
     duration: number;
   } | null>(null);
+  const [successData, setSuccessData] = useState<null | { id: string; supervisor?: string }>(null);
+  const [manualLocation, setManualLocation] = useState({
+    district: "",
+    mandal: "",
+    village: ""
+  });
+  const [useManual, setUseManual] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -60,6 +69,49 @@ const ComplaintSubmission = () => {
 
   const handleVoiceRecordingClear = () => {
     setVoiceRecording(null);
+  };
+
+  useEffect(() => {
+    if (isAuthenticated && user?.phone && formData.phone !== user.phone) {
+      setFormData(prev => ({ ...prev, phone: user.phone }));
+    }
+  }, [isAuthenticated, user?.phone]);
+
+  useEffect(() => {
+    if (isAuthenticated && user?.name && formData.name !== user.name) {
+      setFormData(prev => ({ ...prev, name: user.name }));
+    }
+  }, [isAuthenticated, user?.name]);
+
+  const handleLocationDetected = (location: string) => {
+    setFormData(prev => ({ ...prev, location }));
+    // Try to match location to district and mandal
+    let found = false;
+    let matchedDistrict = "";
+    let matchedMandal = "";
+    // Helper to get English part before parenthesis
+    const getEnglish = (name: string) => name.split('(')[0].trim();
+    for (const d of telanganaData) {
+      const districtEnglish = getEnglish(d.district);
+      if (location.toLowerCase().includes(districtEnglish.toLowerCase())) {
+        matchedDistrict = d.district;
+        for (const m of d.mandals) {
+          const mandalEnglish = getEnglish(m.mandal);
+          if (location.toLowerCase().includes(mandalEnglish.toLowerCase())) {
+            matchedMandal = m.mandal;
+            break;
+          }
+        }
+        break;
+      }
+    }
+    if (matchedDistrict && matchedMandal) {
+      setManualLocation({ district: matchedDistrict, mandal: matchedMandal, village: "" });
+      setUseManual(true);
+      found = true;
+    } else {
+      setUseManual(false);
+    }
   };
 
   const validateForm = () => {
@@ -108,15 +160,6 @@ const ComplaintSubmission = () => {
       return false;
     }
 
-    if (!formData.areaType) {
-      toast({
-        title: "Error",
-        description: "Area type is required.",
-        variant: "destructive"
-      });
-      return false;
-    }
-
     return true;
   };
 
@@ -128,6 +171,42 @@ const ComplaintSubmission = () => {
     setIsSubmitting(true);
 
     try {
+      let location = formData.location;
+      if (useManual) {
+        location = `${manualLocation.mandal}, ${manualLocation.district}`;
+      }
+
+      // Supervisor assignment logic
+      let mandalName = "";
+      if (useManual && manualLocation.mandal) {
+        mandalName = manualLocation.mandal.split("(")[0].trim();
+      } else if (formData.location) {
+        const parts = formData.location.split(",");
+        if (parts.length > 0) {
+          mandalName = parts[0].split("(")[0].trim();
+        }
+      }
+      let assignedOfficerId = null;
+      let locationId = null;
+      if (mandalName) {
+        // Find the location_id for this mandal
+        const { data: locationData, error: locationError } = await supabase
+          .from('locations')
+          .select('id, name')
+          .ilike('name', `%${mandalName}%`)
+          .single();
+        if (locationError || !locationData) throw new Error('Location not found for mandal: ' + mandalName);
+        locationId = locationData.id;
+        // Find the supervisor for this location
+        const { data: assignment, error: assignmentError } = await supabase
+          .from('employee_assignments')
+          .select('user_id')
+          .eq('location_id', locationId)
+          .single();
+        if (assignmentError || !assignment) throw new Error('Supervisor not found for location: ' + mandalName);
+        assignedOfficerId = assignment.user_id;
+      }
+
       // Convert voice recording to base64 if present
       let voiceBase64 = null;
       if (voiceRecording) {
@@ -144,13 +223,14 @@ const ComplaintSubmission = () => {
       // Prepare complaint data
       const complaintData = {
         name: formData.name,
-        phone: formData.phone,
-        location_name: formData.location,
+        phone: isAuthenticated && user?.phone ? user.phone : formData.phone,
+        location_name: location,
+        location_id: locationId,
         category: formData.category,
         description: voiceRecording ? "Voice message provided" : formData.description,
-        area_type: formData.areaType,
         voice_message: voiceBase64,
         voice_duration: voiceRecording?.duration || null,
+        assigned_officer_id: assignedOfficerId,
         status: 'submitted' as const,
         submitted_at: new Date().toISOString()
       };
@@ -167,16 +247,13 @@ const ComplaintSubmission = () => {
         throw error;
       }
 
-      console.log('Complaint submitted successfully:', data);
-
+      // Instead of navigate, show success message
+      setSuccessData({ id: data.id });
       toast({
         title: "Success!",
         description: "Your complaint has been submitted successfully.",
         className: "bg-green-50 text-green-800"
       });
-
-      // Navigate to success page or complaint tracking
-      navigate(`/track-complaint?id=${data.id}`);
 
     } catch (error) {
       console.error("Error submitting complaint:", error);
@@ -187,6 +264,25 @@ const ComplaintSubmission = () => {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Temporary: Delete all complaints for the current user
+  const handleDeleteAllComplaints = async () => {
+    if (!user?.phone) return;
+    const { error } = await supabase.from('complaints').delete().eq('phone', user.phone);
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete complaints.',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Success',
+        description: 'All your complaints have been deleted.',
+        className: 'bg-green-50 text-green-800',
+      });
     }
   };
 
@@ -214,6 +310,50 @@ const ComplaintSubmission = () => {
           </Card>
         </div>
         {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+        <Footer />
+      </div>
+    );
+  }
+
+  if (successData) {
+    // Extract mandal from manualLocation or formData.location
+    let mandal = "";
+    if (manualLocation.mandal) {
+      mandal = manualLocation.mandal.split("(")[0].trim();
+    } else if (formData.location) {
+      // Try to match mandal from location string
+      const parts = formData.location.split(",");
+      if (parts.length > 0) {
+        mandal = parts[0].split("(")[0].trim();
+      }
+    }
+    // const supervisorId = supervisorNumbers[mandal] || "";
+    // Feedback form removed from here
+    return (
+      <div className="min-h-screen bg-ts-background font-poppins">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-xl mx-auto">
+            <Card className="shadow-lg rounded-xl border-0 text-center">
+              <CardContent className="p-10">
+                <FileText className="h-16 w-16 text-green-500 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-green-800 mb-2">Complaint Submitted!</h2>
+                <p className="text-ts-text-secondary mb-4">
+                  Your complaint has been submitted and forwarded to your area supervisor.
+                </p>
+                <div className="mb-4">
+                  <span className="font-semibold text-ts-text">Complaint ID:</span>
+                  <span className="ml-2 text-ts-accent font-mono">{successData.id}</span>
+                </div>
+                <Link to={`/track-complaint?id=${successData.id}`}>
+                  <Button className="bg-ts-primary hover:bg-ts-primary-dark text-white">
+                    Track Your Complaint
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
         <Footer />
       </div>
     );
@@ -263,6 +403,8 @@ const ComplaintSubmission = () => {
                       className="mt-1"
                       placeholder="Enter your full name"
                       required
+                      readOnly={isAuthenticated}
+                      style={isAuthenticated ? { backgroundColor: '#f3f4f6', cursor: 'not-allowed' } : {}}
                     />
                   </div>
 
@@ -279,24 +421,52 @@ const ComplaintSubmission = () => {
                       className="mt-1"
                       placeholder="Enter your phone number"
                       required
+                      readOnly={isAuthenticated}
+                      style={isAuthenticated ? { backgroundColor: '#f3f4f6', cursor: 'not-allowed' } : {}}
                     />
                   </div>
                 </div>
 
-                <div>
+                <div className="mb-4">
                   <Label className="text-ts-text">Location *</Label>
-                  <Select onValueChange={(value) => handleInputChange("location", value)} value={formData.location}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select your location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locations.map((location) => (
-                        <SelectItem key={location} value={location}>
-                          {location}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex flex-col gap-2">
+                    <LocationDetector onLocationDetected={handleLocationDetected} />
+                    <div className="text-xs text-gray-500">Or select manually if detection fails:</div>
+                    {!useManual && (
+                      <Button type="button" variant="outline" onClick={() => setUseManual(true)} className="w-fit">Select Manually</Button>
+                    )}
+                    {useManual && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
+                        {/* District Dropdown */}
+                        <select
+                          className="border rounded p-2"
+                          value={manualLocation.district}
+                          onChange={e => {
+                            setManualLocation({ district: e.target.value, mandal: "", village: "" });
+                          }}
+                        >
+                          <option value="">---select---</option>
+                          {telanganaData.map(d => (
+                            <option key={d.district} value={d.district}>{d.district}</option>
+                          ))}
+                        </select>
+                        {/* Mandal Dropdown */}
+                        <select
+                          className="border rounded p-2"
+                          value={manualLocation.mandal}
+                          onChange={e => {
+                            setManualLocation(prev => ({ ...prev, mandal: e.target.value, village: "" }));
+                          }}
+                          disabled={!manualLocation.district}
+                        >
+                          <option value="">Select Mandal</option>
+                          {telanganaData.find(d => d.district === manualLocation.district)?.mandals.map(m => (
+                            <option key={m.mandal} value={m.mandal}>{m.mandal}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -313,24 +483,6 @@ const ComplaintSubmission = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div>
-                  <Label className="text-ts-text">Area Type *</Label>
-                  <RadioGroup
-                    value={formData.areaType}
-                    onValueChange={(value) => handleInputChange("areaType", value)}
-                    className="mt-2"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="Village" id="village" />
-                      <Label htmlFor="village">Village (గ్రామం)</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="City" id="city" />
-                      <Label htmlFor="city">City (నగరం)</Label>
-                    </div>
-                  </RadioGroup>
                 </div>
 
                 <div>

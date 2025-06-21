@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +13,7 @@ import SupervisorDashboard from "./pages/SupervisorDashboard";
 import Contact from "./pages/Contact";
 import MyComplaints from "./pages/MyComplaints";
 import NotFound from "./pages/NotFound";
+import ChatBot from "@/components/ChatBot";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +36,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        <ChatBot />
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

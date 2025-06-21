@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Home } from "lucide-react";
+import ChatBot from "@/components/ChatBot";
 
 const OfficialLogin = () => {
   const navigate = useNavigate();
@@ -120,7 +120,8 @@ const OfficialLogin = () => {
                 </Button>
               </form>
               
-              <div className="mt-6 p-4 bg-ts-background rounded-lg">
+              {/* Restore original admin demo credentials below the login form */}
+              <div className="mt-6 p-4 bg-ts-background rounded-lg text-center">
                 <p className="text-sm text-ts-text-secondary text-center">
                   Demo Credentials:<br />
                   Employee ID: <strong>admin</strong><br />
@@ -133,6 +134,7 @@ const OfficialLogin = () => {
       </div>
       
       <Footer />
+      <ChatBot />
     </div>
   );
 };

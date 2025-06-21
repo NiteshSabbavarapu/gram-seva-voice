@@ -327,6 +327,17 @@ const AdminDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {/* DEBUG: List all supervisor assignments */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mb-6 text-xs text-yellow-900">
+              <div><b>DEBUG: Supervisor Assignments</b></div>
+              <ul>
+                {supervisors.map((supervisor) => (
+                  <li key={supervisor.id}>
+                    <b>{supervisor.location_name}</b>: {supervisor.name} ({supervisor.phone}) - user_id: {supervisor.id}
+                  </li>
+                ))}
+              </ul>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {supervisors.map((supervisor) => (
                 <Card key={supervisor.id} className="border-2 hover:border-ts-primary transition-colors cursor-pointer"

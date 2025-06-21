@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,14 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Search, Home, CheckCircle, Clock, FileText } from "lucide-react";
-import { complaintsStore, Complaint } from "@/lib/complaintsStore";
+import { supabase } from "@/integrations/supabase/client";
+import FeedbackForm from "../components/FeedbackForm";
 
 const ComplaintTracking = () => {
   const [searchParams] = useSearchParams();
   const [complaintId, setComplaintId] = useState(searchParams.get('id') || "");
-  const [complaint, setComplaint] = useState<Complaint | null>(null);
+  const [complaint, setComplaint] = useState<any | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [feedbackGiven, setFeedbackGiven] = useState(false);
+  const [checkingFeedback, setCheckingFeedback] = useState(false);
 
   useEffect(() => {
     const id = searchParams.get('id');
@@ -26,20 +28,44 @@ const ComplaintTracking = () => {
     }
   }, [searchParams]);
 
-  const handleSearch = (id?: string) => {
+  useEffect(() => {
+    const checkFeedback = async () => {
+      if (complaint && complaint.id) {
+        setCheckingFeedback(true);
+        const { data } = await supabase
+          .from("supervisor_feedback")
+          .select("id")
+          .eq("complaint_id", complaint.id)
+          .single();
+        setFeedbackGiven(!!data);
+        setCheckingFeedback(false);
+      }
+    };
+    checkFeedback();
+  }, [complaint]);
+
+  const handleSearch = async (id?: string) => {
     const searchId = id || complaintId;
     if (!searchId.trim()) return;
 
     setIsSearching(true);
     setNotFound(false);
-    
-    // Simulate API call
-    setTimeout(() => {
-      const foundComplaint = complaintsStore.getComplaintById(searchId.trim());
-      setComplaint(foundComplaint || null);
-      setNotFound(!foundComplaint);
-      setIsSearching(false);
-    }, 1000);
+
+    // Query Supabase for the complaint by ID
+    const { data, error } = await supabase
+      .from('complaints')
+      .select('*')
+      .eq('id', searchId.trim())
+      .single();
+
+    if (error || !data) {
+      setComplaint(null);
+      setNotFound(true);
+    } else {
+      setComplaint(data);
+      setNotFound(false);
+    }
+    setIsSearching(false);
   };
 
   const getStatusIcon = (status: string) => {
@@ -184,13 +210,28 @@ const ComplaintTracking = () => {
                     </div>
                   </div>
 
-                  {complaint.status === "Resolved" && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-green-800 mb-2">✅ Resolution</h4>
-                      <p className="text-green-700">
-                        Your complaint has been successfully resolved. Thank you for using TS Gram Seva.
-                      </p>
-                    </div>
+                  {complaint.status && complaint.status.toLowerCase() === "resolved" && (
+                    <>
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                        <h4 className="font-semibold text-green-800 mb-2">✅ Resolution</h4>
+                        <p className="text-green-700">
+                          Your complaint has been successfully resolved. Thank you for using TS Gram Seva.
+                        </p>
+                      </div>
+                      {/* Feedback Form after resolution */}
+                      {!checkingFeedback && !feedbackGiven && complaint.assigned_officer_id && (
+                        <div className="mt-6">
+                          <FeedbackForm
+                            complaintId={complaint.id}
+                            supervisorId={complaint.assigned_officer_id}
+                            onSubmitted={() => setFeedbackGiven(true)}
+                          />
+                        </div>
+                      )}
+                      {feedbackGiven && (
+                        <div className="text-green-700 font-semibold text-lg mt-4">Thank you for your feedback!</div>
+                      )}
+                    </>
                   )}
                 </div>
               </CardContent>

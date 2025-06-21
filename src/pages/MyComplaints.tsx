@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { ArrowLeft, Eye, FileText, Home, User, Phone, Volume2, Play, Pause } fro
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import FeedbackForm from "../components/FeedbackForm";
 
 type ComplaintStatus = Database["public"]["Enums"]["complaint_status"];
 
@@ -37,6 +38,10 @@ const MyComplaints = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
+  const [feedbackStatus, setFeedbackStatus] = useState<Record<string, boolean>>({});
+  const [checkingFeedback, setCheckingFeedback] = useState<Record<string, boolean>>({});
+  const [showFeedbackForm, setShowFeedbackForm] = useState<Record<string, boolean>>({});
+  const [supervisorNames, setSupervisorNames] = useState<Record<string, string>>({});
   
   // Use authenticated user's phone or fallback to URL param
   const phoneNumber = user?.phone || searchParams.get('phone');
@@ -122,6 +127,55 @@ const MyComplaints = () => {
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Check feedback for a complaint
+  const checkFeedback = useCallback(async (complaintId: string) => {
+    setCheckingFeedback(prev => ({ ...prev, [complaintId]: true }));
+    const { data } = await supabase
+      .from("supervisor_feedback")
+      .select("id")
+      .eq("complaint_id", complaintId)
+      .single();
+    setFeedbackStatus(prev => ({ ...prev, [complaintId]: !!data }));
+    setCheckingFeedback(prev => ({ ...prev, [complaintId]: false }));
+  }, []);
+
+  useEffect(() => {
+    // For all resolved complaints, check feedback status
+    complaints.forEach((complaint) => {
+      if (
+        complaint.status?.toLowerCase() === "resolved" &&
+        complaint.assigned_officer_id &&
+        feedbackStatus[complaint.id] === undefined &&
+        !checkingFeedback[complaint.id]
+      ) {
+        checkFeedback(complaint.id);
+      }
+    });
+  }, [complaints, feedbackStatus, checkingFeedback, checkFeedback]);
+
+  useEffect(() => {
+    // Fetch supervisor names for all complaints with assigned_officer_id
+    const fetchSupervisorNames = async () => {
+      const ids = complaints
+        .map((c) => c.assigned_officer_id)
+        .filter((id): id is string => !!id && !supervisorNames[id]);
+      if (ids.length === 0) return;
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, name")
+        .in("id", ids);
+      if (!error && data) {
+        const names: Record<string, string> = {};
+        data.forEach((u) => {
+          names[u.id] = u.name || "Unknown Supervisor";
+        });
+        setSupervisorNames((prev) => ({ ...prev, ...names }));
+      }
+    };
+    fetchSupervisorNames();
+    // eslint-disable-next-line
+  }, [complaints]);
 
   if (!isAuthenticated) {
     return (
@@ -325,6 +379,14 @@ const MyComplaints = () => {
                                 📍 {complaint.location_name}
                               </p>
                             )}
+                            {/* Debug Output for Feedback Button Troubleshooting */}
+                            <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mt-2 text-xs text-yellow-900">
+                              <div><b>DEBUG:</b></div>
+                              <div>Status: {String(complaint.status)}</div>
+                              <div>Assigned Officer ID: {String(complaint.assigned_officer_id)}</div>
+                              <div>Feedback Given: {String(feedbackStatus[complaint.id])}</div>
+                              <div>Checking Feedback: {String(checkingFeedback[complaint.id])}</div>
+                            </div>
                             
                             {/* Voice Message Section */}
                             {complaint.voice_message && (
@@ -369,8 +431,35 @@ const MyComplaints = () => {
                             </div>
                             {complaint.assigned_officer_id && (
                               <p className="text-sm text-ts-accent mt-1">
-                                👤 Assigned to: {complaint.assigned_officer_id}
+                                👤 Assigned to: {supervisorNames[complaint.assigned_officer_id] || complaint.assigned_officer_id}
                               </p>
+                            )}
+                            {/* Feedback Form for resolved complaints with button */}
+                            {complaint.status?.toLowerCase() === "resolved" && complaint.assigned_officer_id && (
+                              <div className="mt-4">
+                                {checkingFeedback[complaint.id] ? (
+                                  <span className="text-gray-500 text-sm">Checking feedback...</span>
+                                ) : feedbackStatus[complaint.id] ? (
+                                  <span className="text-green-700 font-semibold text-sm">Thank you for your feedback!</span>
+                                ) : showFeedbackForm[complaint.id] ? (
+                                  <FeedbackForm
+                                    complaintId={complaint.id}
+                                    supervisorId={complaint.assigned_officer_id}
+                                    onSubmitted={() => {
+                                      setFeedbackStatus(prev => ({ ...prev, [complaint.id]: true }));
+                                      setShowFeedbackForm(prev => ({ ...prev, [complaint.id]: false }));
+                                    }}
+                                  />
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    onClick={() => setShowFeedbackForm(prev => ({ ...prev, [complaint.id]: true }))}
+                                  >
+                                    Give Feedback
+                                  </Button>
+                                )}
+                              </div>
                             )}
                           </div>
                           

@@ -321,6 +321,48 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
         }
         Relationships: []
+      },
+      supervisor_feedback: {
+        Row: {
+          id: string;
+          complaint_id: string;
+          supervisor_id: string;
+          rating: number;
+          comments: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          complaint_id: string;
+          supervisor_id: string;
+          rating: number;
+          comments?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          complaint_id?: string;
+          supervisor_id?: string;
+          rating?: number;
+          comments?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "supervisor_feedback_complaint_id_fkey",
+            columns: ["complaint_id"],
+            isOneToOne: false,
+            referencedRelation: "complaints",
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supervisor_feedback_supervisor_id_fkey",
+            columns: ["supervisor_id"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"]
+          }
+        ];
       }
     }
     Views: {

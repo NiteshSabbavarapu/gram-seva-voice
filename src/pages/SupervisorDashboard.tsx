@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -46,13 +45,20 @@ const SupervisorDashboard = () => {
 
     setLoading(true);
     try {
-      // For demo purposes, load sample complaints
-      // In a real app, you'd fetch based on supervisor assignments
+      // Fetch the supervisor's user id by phone
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phone', user.phone)
+        .single();
+      if (userError || !userData) throw new Error('Supervisor user not found');
+      const supervisorId = userData.id;
+      // Fetch only complaints assigned to this supervisor
       const { data: complaintsData, error: complaintsError } = await supabase
         .from("complaints")
         .select("*")
-        .order("submitted_at", { ascending: false })
-        .limit(10);
+        .eq("assigned_officer_id", supervisorId)
+        .order("submitted_at", { ascending: false });
 
       if (complaintsError) {
         console.error("Error loading complaints:", complaintsError);
@@ -60,7 +66,7 @@ const SupervisorDashboard = () => {
       }
 
       setComplaints(complaintsData || []);
-      setLocationName("Sample Location");
+      setLocationName("Your Mandal");
     } catch (error) {
       console.error("Error loading supervisor data:", error);
       toast({

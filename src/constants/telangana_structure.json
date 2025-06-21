@@ -1,0 +1,230 @@
+[
+  {
+    "district": "Adilabad (అదిలాబాద్)",
+    "mandals": [
+      {"mandal": "Adilabad Urban (అదిలాబాద్ అర్బన్)", "villages": []},
+      {"mandal": "Adilabad Rural (అదిలాబాద్ రూరల్)", "villages": []},
+      {"mandal": "Mavala (మావల)", "villages": []},
+      {"mandal": "Gudihatnoor (గుడిహత్నూర్)", "villages": []},
+      {"mandal": "Bajahatnoor (బజహత్నూర్)", "villages": []},
+      {"mandal": "Bela (బేల)", "villages": []},
+      {"mandal": "Boadh (బోధ)", "villages": []},
+      {"mandal": "Jainath (జైనత్)", "villages": []},
+      {"mandal": "Indervelly (ఇందెర్వెల్లి)", "villages": []},
+      {"mandal": "Narnoor (నర్నూర్)", "villages": []},
+      {"mandal": "Gudiguda (గుడిగూడ)", "villages": []},
+      {"mandal": "Utnoor (ఉట్నూర్)", "villages": []}
+    ]
+  },
+  {
+    "district": "Bhadradri Kothagudem (భద్రాద్రి కొత్తగూడెం)",
+    "mandals": [
+      {"mandal": "Kothagudem (కొత్తగూడెం)", "villages": []},
+      {"mandal": "Palwancha (పాల్వంచ)", "villages": []},
+      {"mandal": "Tekulapalli (టేకులపల్లి)", "villages": []},
+      {"mandal": "Yellandu (యల్లందు)", "villages": []},
+      {"mandal": "Chandrugonda (చంద్రుగొండ)", "villages": []},
+      {"mandal": "Aswaraopeta (అశ్వారావుపేట)", "villages": []},
+      {"mandal": "Mulakalapalli (ములకలపల్లి)", "villages": []},
+      {"mandal": "Dammapeta (దమ్మపేట)", "villages": []},
+      {"mandal": "Gundala (గుండాల)", "villages": []},
+      {"mandal": "Julurpadu (జూలూరుపాడు)", "villages": []},
+      {"mandal": "Sujathanagar (సుజాతనగర్)", "villages": []},
+      {"mandal": "Chunchupalle (చుంచుపల్లి)", "villages": []},
+      {"mandal": "Laxmidevipalli (లక్ష్మిదేవిపల్లి)", "villages": []},
+      {"mandal": "Allapalli (అల్లపల్లి)", "villages": []},
+      {"mandal": "Annapureddypalli (అన్నపురెడ్డిపల్లి)", "villages": []},
+      {"mandal": "Bhadrachalam (భద్రాచలం)", "villages": []},
+      {"mandal": "Dummugudem (దుమ్ముగూడెం)", "villages": []},
+      {"mandal": "Cherla (చెర్ల)", "villages": []},
+      {"mandal": "Burgampahad (బుర్గంపహాడ్)", "villages": []},
+      {"mandal": "Aswapuram (అశ్వాపురం)", "villages": []},
+      {"mandal": "Manuguru (మనుగూరు)", "villages": []},
+      {"mandal": "Pinapaka (పినపాక)", "villages": []},
+      {"mandal": "Karakagudem (కరకగూడెం)", "villages": []}
+    ]
+  },
+  {
+    "district": "Hanamkonda (హనమకొండ)",
+    "mandals": [
+      {"mandal": "Bheemadevarpalli (భీమదేవర్పల్లి)", "villages": []},
+      {"mandal": "Dharmasagar (ధర్మసాగర్)", "villages": []},
+      {"mandal": "Elkathurthy (ఎల్కతుర్తి)", "villages": []},
+      {"mandal": "Inavole (ఇనవోలె)", "villages": []},
+      {"mandal": "Hanamkonda (హనమకొండ)", "villages": []},
+      {"mandal": "Hasanparthy (హసన్‌పర్తి)", "villages": []},
+      {"mandal": "Kamalapur (కమలాపూర్)", "villages": []},
+      {"mandal": "Kazipet (కాజీపేట్)", "villages": []},
+      {"mandal": "Khila Warangal (ఖిలా వరంగల్)", "villages": []},
+      {"mandal": "Velair (వెలైర్)", "villages": []},
+      {"mandal": "Warangal (వరంగల్)", "villages": []}
+    ]
+  },
+  {
+    "district": "Hyderabad (హైదరాబాద్)",
+    "mandals": [
+      {"mandal": "Amberpet (అంబర్‌పేట్)", "villages": []},
+      {"mandal": "Asif Nagar (అసిఫ్ నగర్)", "villages": []},
+      {"mandal": "Bahadurpura (బహదూర్‌పురా)", "villages": []},
+      {"mandal": "Bandlaguda (బండ్లగూడ)", "villages": []},
+      {"mandal": "Charminar (చార్మినార్)", "villages": []},
+      {"mandal": "Golkonda (గోల్కొండ)", "villages": []},
+      {"mandal": "Himayathnagar (హిమాయత్‌నగర్)", "villages": []},
+      {"mandal": "Nampally (నాంపల్లి)", "villages": []},
+      {"mandal": "Saidabad (సైదాబాద్)", "villages": []},
+      {"mandal": "Serilingampalle (సెరిళింగంపల్లె)", "villages": []},
+      {"mandal": "Gandipet (గండిపేట్)", "villages": []}
+    ]
+  },
+  {
+    "district": "Kumuram Bheem Asifabad (కుమురం భీమ్ ఆసిఫాబాద్)",
+    "mandals": [
+      {"mandal": "Asifabad (ఆసిఫాబాద్)", "villages": []},
+      {"mandal": "Bejjur (బెజ్జూర్)", "villages": []},
+      {"mandal": "Dahegaon (దహేగావ్)", "villages": []},
+      {"mandal": "Jainoor (జైనూర్)", "villages": []},
+      {"mandal": "Kerameri (కెరామేరి)", "villages": []},
+      {"mandal": "Kouthala (కౌతాల)", "villages": []},
+      {"mandal": "Penchikalpet (పెంచికల్పేట్)", "villages": []},
+      {"mandal": "Rebbena (రెబ్బెన)", "villages": []},
+      {"mandal": "Sirpur (U) (సిర్పూర్ (యు))", "villages": []},
+      {"mandal": "Sirpur (T) (సిర్పూర్ (టి))", "villages": []},
+      {"mandal": "Tiryani (తిర్యాని)", "villages": []},
+      {"mandal": "Wankidi (వంకిడి)", "villages": []}
+    ]
+  },
+  {
+    "district": "Mahabubabad (మహబూబాబాద్)",
+    "mandals": [
+      {"mandal": "Bayyaram (బయ్యారం)", "villages": []},
+      {"mandal": "Chinnagudur (చిన్నగూడూరు)", "villages": []},
+      {"mandal": "Dameracherla (దామెరచెర్ల)", "villages": []},
+      {"mandal": "Danthalapally (దంతలపల్లి)", "villages": []},
+      {"mandal": "Gudur (గూడూరు)", "villages": []},
+      {"mandal": "Kothagudem (కొత్తగూడెం)", "villages": []},
+      {"mandal": "Kuravi (కురవి)", "villages": []},
+      {"mandal": "Mahabubabad (మహబూబాబాద్)", "villages": []},
+      {"mandal": "Maripeda (మరిపెడ)", "villages": []},
+      {"mandal": "Narsimhulapet (నర్సింహులపేట)", "villages": []},
+      {"mandal": "Nellikudur (నెల్లికుదురు)", "villages": []}
+    ]
+  },
+  {
+    "district": "Mahabubnagar (మహబూబ్‌నగర్)",
+    "mandals": [
+      {"mandal": "Achampet (అచంపేట)", "villages": []},
+      {"mandal": "Addakal (అద్దకల్)", "villages": []},
+      {"mandal": "Amrabad (అమ్రాబాద్)", "villages": []},
+      {"mandal": "Balanagar (బాలానగర్)", "villages": []},
+      {"mandal": "Boothpur (బూత్‌పూర్)", "villages": []},
+      {"mandal": "Devarakadra (దేవరకద్ర)", "villages": []},
+      {"mandal": "Dhanwada (ధన్వాడ)", "villages": []},
+      {"mandal": "Ghanpur (ఘన్పూర్)", "villages": []},
+      {"mandal": "Hanwada (హన్వాడ)", "villages": []},
+      {"mandal": "Jadcherla (జడ్చర్ల)", "villages": []},
+      {"mandal": "Kalwakurthy (కల్వకుర్తి)", "villages": []},
+      {"mandal": "Kodair (కొడైర్)", "villages": []},
+      {"mandal": "Mahabubnagar (మహబూబ్‌నగర్)", "villages": []},
+      {"mandal": "Maktal (మక్తల్)", "villages": []},
+      {"mandal": "Midjil (మిడ్జిల్)", "villages": []},
+      {"mandal": "Nawabpet (నవాబ్‌పేట్)", "villages": []}
+    ]
+  },
+  {
+    "district": "Mancherial (మంచిర్యాల్)",
+    "mandals": [
+      {"mandal": "Bellampalli (బెల్లంపల్లి)", "villages": []},
+      {"mandal": "Bheemini (భీమిని)", "villages": []},
+      {"mandal": "Chennur (చెన్నూర్)", "villages": []},
+      {"mandal": "Dandepalli (దండేపల్లి)", "villages": []},
+      {"mandal": "Hajipur (హాజీపూర్)", "villages": []},
+      {"mandal": "Jannaram (జన్నారం)", "villages": []},
+      {"mandal": "Kasipet (కాసిపేట్)", "villages": []},
+      {"mandal": "Kotapalli (కోటపల్లి)", "villages": []},
+      {"mandal": "Luxettipet (లక్సెట్టిపేట్)", "villages": []},
+      {"mandal": "Mancherial (మంచిర్యాల్)", "villages": []},
+      {"mandal": "Mandamarri (మండమర్రి)", "villages": []},
+      {"mandal": "Naspur (నస్పూర్)", "villages": []},
+      {"mandal": "Tandur (తాండూర్)", "villages": []},
+      {"mandal": "Vempalli (వెంపల్లి)", "villages": []},
+      {"mandal": "Nennel (నెన్నెల్)", "villages": []},
+      {"mandal": "Kannepally (కన్నేపల్లి)", "villages": []}
+    ]
+  },
+  {
+    "district": "Medak (మెదక్)",
+    "mandals": [
+      {"mandal": "Alladurg (అల్లదుర్గ్)", "villages": []},
+      {"mandal": "Andole (అందోల్)", "villages": []},
+      {"mandal": "Chilipched (చిలిప్చెడ్)", "villages": []},
+      {"mandal": "Chegunta (చెగుంట)", "villages": []},
+      {"mandal": "Doulthabad (దౌల్తాబాద్)", "villages": []},
+      {"mandal": "Gajwel (గజ్వేల్)", "villages": []},
+      {"mandal": "Haveli Ghanpur (హవేలీ ఘన్పూర్)", "villages": []},
+      {"mandal": "Jogipet (జోగిపేట్)", "villages": []},
+      {"mandal": "Kulcharam (కుల్చారం)", "villages": []},
+      {"mandal": "Manoharabad (మనోహరాబాద్)", "villages": []}
+    ]
+  },
+  {
+    "district": "Medchal-Malkajgiri (మెడ్చల్-మల్కాజ్గిరి)",
+    "mandals": [
+      {"mandal": "Alwal (అల్వాల్)", "villages": []},
+      {"mandal": "Bachupally (బాచుపల్లి)", "villages": []},
+      {"mandal": "Balanagar (బాలానగర్)", "villages": []},
+      {"mandal": "Dundigal (దుండిగల్)", "villages": []},
+      {"mandal": "Kukatpally (కూకట్‌పల్లి)", "villages": []},
+      {"mandal": "Malkajgiri (మల్కాజ్గిరి)", "villages": []},
+      {"mandal": "Quthbullapur (కుత్బుల్లాపూర్)", "villages": []},
+      {"mandal": "Ghatkesar (ఘట్‌కేసర్)", "villages": []},
+      {"mandal": "Kapra (కాప్రా)", "villages": []},
+      {"mandal": "Keesara (కీసర)", "villages": []},
+      {"mandal": "Medchal (మెడ్చల్)", "villages": []},
+      {"mandal": "Medipally (మెడిపల్లి)", "villages": []},
+      {"mandal": "Shamirpet (షామీర్‌పేట్)", "villages": []},
+      {"mandal": "Uppal (ఉప్పల్)", "villages": []}
+    ]
+  },
+  {
+    "district": "Mulugu (ములుగు)",
+    "mandals": [
+      {"mandal": "Eturnagaram (ఎటూరునాగారం)", "villages": []},
+      {"mandal": "Govindaraopet (గోవిందరావుపేట)", "villages": []},
+      {"mandal": "Mangapet (మంగపేట)", "villages": []},
+      {"mandal": "Mulugu (ములుగు)", "villages": []},
+      {"mandal": "Tadvai (తాడ్వాయి)", "villages": []},
+      {"mandal": "Vajedu (వాజేడు)", "villages": []},
+      {"mandal": "Venkatapur (వెంకటాపూర్)", "villages": []},
+      {"mandal": "Kannaigudem (కన్నాయిగూడెం)", "villages": []},
+      {"mandal": "Chintur (చింతూరు)", "villages": []}
+    ]
+  },
+  {
+    "district": "Nagarkurnool (నాగర్‌కర్నూల్)",
+    "mandals": [
+      {"mandal": "Achampet (అచంపేట)", "villages": []},
+      {"mandal": "Amrabad (అమ్రాబాద్)", "villages": []},
+      {"mandal": "Balmoor (బల్మూర్)", "villages": []},
+      {"mandal": "Kalwakurthy (కల్వకుర్తి)", "villages": []},
+      {"mandal": "Lingala (లింగాల)", "villages": []},
+      {"mandal": "Nagarkurnool (నాగర్‌కర్నూల్)", "villages": []},
+      {"mandal": "Pentlavelli (పెంట్లవెల్లి)", "villages": []},
+      {"mandal": "Tadoor (తడూర్)", "villages": []}
+    ]
+  },
+  {
+    "district": "Nalgonda (నల్గొండ)",
+    "mandals": [
+      {"mandal": "Adavidevulapally (అడవిదేవులపల్లి)", "villages": []},
+      {"mandal": "Anumula (అనుముల)", "villages": []},
+      {"mandal": "Chandampet (చందంపేట్)", "villages": []},
+      {"mandal": "Chinthapally (చింతపల్లి)", "villages": []},
+      {"mandal": "Devarakonda (దేవరకొండ)", "villages": []},
+      {"mandal": "Dindi (దిండి)", "villages": []},
+      {"mandal": "Gurrampode (గుర్రంపోడె)", "villages": []},
+      {"mandal": "Kattangur (కట్టంగూర్)", "villages": []},
+      {"mandal": "Konda Mallepally (కొండ మల్లెపల్లి)", "villages": []},
+      {"mandal": "Miryalguda (మిర్యాలగూడ)", "villages": []}
+    ]
+  }
+]
