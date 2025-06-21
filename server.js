@@ -2,9 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import Groq from 'groq-sdk';
+
 dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 3001;
+
 app.use(cors());
 app.use(express.json());
 
@@ -13,12 +16,8 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-// This is the serverless function handler for Vercel
-const handler = async (req, res) => {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
+// Chat API endpoint
+app.post('/api/chat', async (req, res) => {
   const { message, messages } = req.body;
   
   try {
@@ -43,6 +42,8 @@ const handler = async (req, res) => {
     console.error('Backend error:', err);
     res.status(500).json({ reply: 'Sorry, something went wrong. Please try again.' });
   }
-};
+});
 
-export default handler; 
+app.listen(PORT, () => {
+  console.log(`Development server running on port ${PORT}`);
+}); 
